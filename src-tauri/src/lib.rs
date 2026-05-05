@@ -3,6 +3,7 @@ mod commands;
 mod config_sync;
 mod fiber_rpc;
 mod fnn_fetch;
+mod fnn_precheck;
 mod fnn_runtime;
 mod secret;
 mod settings;

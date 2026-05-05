@@ -9,6 +9,26 @@ use std::thread;
 
 const LOG_CAP: usize = 800;
 
+/// Remove common ANSI CSI color sequences so logs are readable in the UI textarea.
+fn strip_ansi_escapes(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut it = s.chars().peekable();
+    while let Some(c) = it.next() {
+        if c == '\u{1b}' && it.peek() == Some(&'[') {
+            it.next();
+            while let Some(x) = it.next() {
+                let code = x as u32;
+                if (0x40..=0x7e).contains(&code) {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FnnStatusPayload {
@@ -92,7 +112,8 @@ impl FnnRuntime {
             thread::spawn(move || {
                 let reader = BufReader::new(out);
                 for line in reader.lines().map_while(Result::ok) {
-                    Self::push_line(&logs, format!("[out] {line}"));
+                    let clean = strip_ansi_escapes(&line);
+                    Self::push_line(&logs, format!("[out] {clean}"));
                 }
             });
         }
@@ -101,7 +122,8 @@ impl FnnRuntime {
             thread::spawn(move || {
                 let reader = BufReader::new(err);
                 for line in reader.lines().map_while(Result::ok) {
-                    Self::push_line(&logs, format!("[err] {line}"));
+                    let clean = strip_ansi_escapes(&line);
+                    Self::push_line(&logs, format!("[err] {clean}"));
                 }
             });
         }

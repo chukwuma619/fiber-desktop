@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GuidedSetupModal } from "./components/GuidedSetupModal";
+import {
+  GUIDED_SETUP_COMPLETE,
+  GUIDED_SETUP_DISMISSED,
+} from "./constants/storageKeys";
 import { PUBLIC_NODE_PUBKEYS, type NetworkId } from "./lib/publicNodes";
 import type {
   AppSettings,
@@ -35,6 +40,11 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+function readGuidanceComplete(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(GUIDED_SETUP_COMPLETE) === "1";
+}
+
 function App() {
   const [tab, setTab] = useState<TabId>("overview");
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -54,6 +64,14 @@ function App() {
   const [fnnBinaryStatus, setFnnBinaryStatus] =
     useState<FnnBinaryStatus | null>(null);
 
+  const [guidedOpen, setGuidedOpen] = useState(false);
+  const [guidedStep, setGuidedStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
+  const [guidedWizardPassword, setGuidedWizardPassword] = useState("");
+  const [guidedConfigInstalled, setGuidedConfigInstalled] = useState(false);
+  const [guidedPasswordSavedOk, setGuidedPasswordSavedOk] = useState(false);
+  const [guidanceComplete, setGuidanceComplete] = useState(readGuidanceComplete);
+  const guidedAutoOpened = useRef(false);
+
   const refreshSettings = useCallback(async () => {
     try {
       const s = await invoke<AppSettings>("get_settings");
@@ -66,7 +84,15 @@ function App() {
 
   const refreshSecurity = useCallback(async () => {
     try {
-      setHasPw(await invoke<boolean>("has_fnn_secret_password"));
+      const raw = await invoke<boolean | string | number>(
+        "has_fnn_secret_password",
+      );
+      const present =
+        raw === true ||
+        raw === 1 ||
+        raw === "true" ||
+        raw === "1";
+      setHasPw(present);
     } catch {
       setHasPw(false);
     }
@@ -115,6 +141,57 @@ function App() {
     return () => window.clearInterval(t);
   }, [pollFnn]);
 
+  useEffect(() => {
+    if (guidedAutoOpened.current) return;
+    if (!settings || hasPw === null) return;
+    if (typeof localStorage === "undefined") return;
+    if (localStorage.getItem(GUIDED_SETUP_COMPLETE) === "1") return;
+    if (localStorage.getItem(GUIDED_SETUP_DISMISSED) === "1") return;
+    if (hasPw) return;
+    guidedAutoOpened.current = true;
+    setGuidedStep(0);
+    setGuidedWizardPassword("");
+    setGuidedConfigInstalled(false);
+    setGuidedPasswordSavedOk(false);
+    setGuidedOpen(true);
+  }, [settings, hasPw]);
+
+  useEffect(() => {
+    if (!guidedOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setGuidedOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [guidedOpen]);
+
+  function openGuidedReset() {
+    setGuidedStep(0);
+    setGuidedWizardPassword("");
+    setGuidedConfigInstalled(false);
+    setGuidedPasswordSavedOk(false);
+    setGuidedOpen(true);
+  }
+
+  function dismissGuidedForLater() {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(GUIDED_SETUP_DISMISSED, "1");
+    }
+    setGuidedOpen(false);
+  }
+
+  function markGuidanceComplete() {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(GUIDED_SETUP_COMPLETE, "1");
+    }
+    setGuidanceComplete(true);
+  }
+
   async function saveSettings() {
     if (!settings) return;
     setSavedOk(false);
@@ -128,23 +205,35 @@ function App() {
     }
   }
 
-  async function savePassword() {
-    if (!password.trim()) return;
+  async function savePassword(override?: string) {
+    const raw = (override ?? password).trim();
+    if (!raw) return;
     try {
-      await invoke("set_fnn_secret_password", { password: password.trim() });
+      await invoke("set_fnn_secret_password", { password: raw });
       setPassword("");
+      setGuidedWizardPassword("");
+      setHasPw(true);
+      if (guidedOpen) {
+        setGuidedPasswordSavedOk(true);
+      }
       await refreshSecurity();
     } catch (e) {
       setLoadError(String(e));
+      setGuidedPasswordSavedOk(false);
+      void refreshSecurity();
     }
   }
 
-  async function startFnn() {
+  async function startFnn(opts?: { guidedFinish?: boolean }) {
     setLoadError(null);
     try {
       await invoke("fnn_start");
       await pollFnn();
       setTab("node");
+      if (opts?.guidedFinish) {
+        markGuidanceComplete();
+        setGuidedOpen(false);
+      }
     } catch (e) {
       setLoadError(String(e));
     }
@@ -244,6 +333,14 @@ function App() {
 
   const nodeKeys = PUBLIC_NODE_PUBKEYS[netId];
 
+  const programReady = Boolean(
+    fnnBinaryStatus &&
+      (fnnBinaryStatus.bundledAvailable || !fnnBinaryStatus.isBundled),
+  );
+
+  const canContinuePasswordStep =
+    hasPw === true || guidedPasswordSavedOk;
+
   const statusLabel =
     fnnStatus?.kind === "running"
       ? "Running"
@@ -311,7 +408,7 @@ function App() {
           )}
         </header>
 
-        {loadError && (
+        {loadError && !guidedOpen && (
           <div className="banner banner-error" role="alert">
             <span className="banner-body">{loadError}</span>
             <button
@@ -327,6 +424,40 @@ function App() {
         <main className="main-scroll">
           {tab === "overview" && (
             <div className="panel-stack">
+              {!guidanceComplete && (
+                <section className="panel panel-get-started">
+                  <h2 className="panel-title">New here?</h2>
+                  <p className="panel-lead">
+                    Use <strong>Guided setup</strong> to pick your network, create
+                    your config file, save your password, and start your node—no
+                    guessing which field comes first.
+                  </p>
+                  <div className="get-started-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => openGuidedReset()}
+                    >
+                      Guided setup
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setTab("setup")}
+                    >
+                      Open full setup
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => markGuidanceComplete()}
+                    >
+                      I am already set up
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="panel panel-hero">
                 <h2 className="sr-only">Node status</h2>
                 <div
@@ -340,10 +471,17 @@ function App() {
                         ? "It should answer at the address you set under Setup → Network."
                         : fnnStatus?.kind === "crashed"
                           ? "Open the Node tab and read the logs for details."
-                          : "When Setup looks good, press Start node below."}
+                          : "Use Guided setup above, then start your node here."}
                     </span>
                   </div>
                   <div className="hero-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => openGuidedReset()}
+                    >
+                      Guided setup
+                    </button>
                     <button
                       type="button"
                       className="btn btn-primary"
@@ -365,7 +503,8 @@ function App() {
               <section className="panel">
                 <h2 className="panel-title">Quick start</h2>
                 <p className="panel-lead">
-                  Follow the sidebar in order the first time you use the app:
+                  Prefer <strong>Guided setup</strong> at the top of this page.
+                  If you already know Fiber, you can use the tabs manually:
                 </p>
                 <ol className="steps-list">
                   <li>
@@ -439,6 +578,27 @@ function App() {
                 <p className="loading-text">Loading settings…</p>
               ) : (
                 <>
+                  <section className="panel">
+                    <h2 className="panel-title">Easy path</h2>
+                    <p className="panel-lead setup-callout-top">
+                      Open <strong>Guided setup</strong> from the Overview tab to
+                      walk through network, config file, password, and starting
+                      the node in order.
+                    </p>
+                    <div className="btn-row">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => openGuidedReset()}
+                      >
+                        Open guided setup
+                      </button>
+                    </div>
+                  </section>
+
+                  <details className="setup-advanced">
+                    <summary>All settings (folders, URLs, downloads)</summary>
+                    <div className="setup-advanced-inner">
                   <section className="panel">
                     <h2 className="panel-title">Network & endpoints</h2>
                     <p className="panel-lead">
@@ -681,6 +841,8 @@ function App() {
                       </li>
                     </ul>
                   </section>
+                    </div>
+                  </details>
 
                   <section className="panel">
                     <h2 className="panel-title">Security</h2>
@@ -731,8 +893,18 @@ function App() {
               <section className="panel">
                 <h2 className="panel-title">Run your node</h2>
                 <p className="panel-lead">
-                  Uses the folders and config you set in Setup. Recent output
-                  appears in the log below.
+                  Uses the folders and config you set in Setup. You must also have a
+                  CKB private key file at{" "}
+                  <code className="code-pill">{"{data folder}/ckb/key"}</code> (see{" "}
+                  <a
+                    className="inline-link"
+                    href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Fiber testnet nodes
+                  </a>
+                  ). Recent output appears below.
                 </p>
                 <div className="btn-row">
                   <button
@@ -976,6 +1148,44 @@ function App() {
           )}
         </main>
       </div>
+
+      {settings && (
+        <GuidedSetupModal
+          open={guidedOpen}
+          step={guidedStep}
+          onStepChange={setGuidedStep}
+          onClose={() => setGuidedOpen(false)}
+          onDismissForLater={dismissGuidedForLater}
+          settings={settings}
+          setSettings={setSettings}
+          applyNetworkDefaults={applyNetworkDefaults}
+          saveSettings={saveSettings}
+          bundledAvailable={!!fnnBinaryStatus?.bundledAvailable}
+          programReady={programReady}
+          onDownloadFnn={downloadPinnedFnn}
+          toolsBusy={toolsBusy}
+          onInstallConfig={installUpstreamConfig}
+          wizardPassword={guidedWizardPassword}
+          onWizardPasswordChange={setGuidedWizardPassword}
+          onSaveWizardPassword={async () => {
+            await savePassword(guidedWizardPassword);
+          }}
+          hasPw={hasPw}
+          canContinuePasswordStep={canContinuePasswordStep}
+          passwordSavedInGuided={guidedPasswordSavedOk}
+          onStartNode={async () => {
+            await startFnn({ guidedFinish: true });
+          }}
+          onMarkComplete={() => {
+            markGuidanceComplete();
+            setGuidedOpen(false);
+          }}
+          configInstalled={guidedConfigInstalled}
+          onConfigInstalled={() => setGuidedConfigInstalled(true)}
+          blockingError={guidedOpen ? loadError : null}
+          onDismissBlockingError={() => setLoadError(null)}
+        />
+      )}
     </div>
   );
 }

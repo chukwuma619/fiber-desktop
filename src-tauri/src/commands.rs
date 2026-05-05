@@ -2,6 +2,7 @@ use crate::bundled_fnn;
 use crate::config_sync;
 use crate::fiber_rpc;
 use crate::fnn_fetch;
+use crate::fnn_precheck;
 use crate::fnn_runtime::FnnRuntime;
 use crate::secret;
 use crate::settings::{self, AppSettings};
@@ -123,6 +124,7 @@ pub fn has_fnn_secret_password() -> Result<bool, String> {
 #[tauri::command]
 pub fn fnn_start(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Result<u32, String> {
     let settings = settings::load_or_default(&app)?;
+    fnn_precheck::check_ckb_node_key_ready(&settings.fnn_data_dir)?;
     let password = secret::get_fnn_secret_password()?.ok_or_else(|| {
         "No FNN key password in OS keychain. Save one under Security first.".to_string()
     })?;

@@ -25,6 +25,17 @@ bun run tauri dev
 
 That is all you need for local development.
 
+## CKB key file (required before `fnn` can run)
+
+Fiber’s node expects a **CKB secp256k1 private key** on disk (not the same as the app keychain password):
+
+- Path: **`{your FNN data directory}/ckb/key`** (one line of hex; often from `ckb-cli account export`).
+- The password you save in Fiber Desktop encrypts this file when `fnn` starts; it does **not** create the key.
+
+See the official guide: [Fiber testnet nodes / key setup](https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md).
+
+If the key is missing, **Start** will show a clear error instead of a Rust panic in the logs.
+
 ### What each step does
 
 1. **`bun run setup`** — Installs JavaScript dependencies and downloads the pinned **fnn** binary into `src-tauri/binaries/` (matching [`PINNED_FNN_TAG`](src-tauri/src/fnn_fetch.rs)). Requires network access to GitHub releases.
