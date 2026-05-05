@@ -179,6 +179,16 @@ body {
   box-shadow: var(--focus);
 }
 
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inline-link:hover {
+  color: var(--accent-hover);
+}
+
 .shell-main {
   flex: 1;
   min-width: 0;

@@ -18,11 +18,19 @@ const TABS = [
   {
     id: "overview" as const,
     label: "Overview",
-    hint: "Status & quick actions",
+    hint: "See status and get started",
   },
-  { id: "setup" as const, label: "Setup", hint: "Paths, tools, security" },
-  { id: "node" as const, label: "Node", hint: "Process & logs" },
-  { id: "network" as const, label: "Network", hint: "JSON-RPC" },
+  {
+    id: "setup" as const,
+    label: "Setup",
+    hint: "Network, folders, and security",
+  },
+  { id: "node" as const, label: "Node", hint: "Start, stop, and logs" },
+  {
+    id: "network" as const,
+    label: "Network",
+    hint: "Connect and try payments",
+  },
 ];
 
 type TabId = (typeof TABS)[number]["id"];
@@ -250,7 +258,7 @@ function App() {
           <span className="nav-brand-mark" aria-hidden />
           <div>
             <div className="nav-brand-title">Fiber Desktop</div>
-            <div className="nav-brand-sub">Local FNN</div>
+            <div className="nav-brand-sub">Your Fiber node, made simple</div>
           </div>
         </div>
         <nav className="nav-list">
@@ -273,7 +281,7 @@ function App() {
           target="_blank"
           rel="noreferrer"
         >
-          Public nodes guide →
+          About public test nodes →
         </a>
       </aside>
 
@@ -325,14 +333,14 @@ function App() {
                   className={`hero-status hero-status-${fnnStatus?.kind ?? "stopped"}`}
                 >
                   <div className="hero-status-text">
-                    <span className="hero-label">FNN process</span>
+                    <span className="hero-label">Your node</span>
                     <strong className="hero-value">{statusLabel}</strong>
                     <span className="hero-sub">
                       {fnnStatus?.kind === "running"
-                        ? "Your node should accept RPC on the URL in Setup."
+                        ? "It should answer at the address you set under Setup → Network."
                         : fnnStatus?.kind === "crashed"
-                          ? "Check logs on the Node tab."
-                          : "Start the node when config and keys are ready."}
+                          ? "Open the Node tab and read the logs for details."
+                          : "When Setup looks good, press Start node below."}
                     </span>
                   </div>
                   <div className="hero-actions">
@@ -357,7 +365,7 @@ function App() {
               <section className="panel">
                 <h2 className="panel-title">Quick start</h2>
                 <p className="panel-lead">
-                  Use the sidebar to move through setup. Typical order:
+                  Follow the sidebar in order the first time you use the app:
                 </p>
                 <ol className="steps-list">
                   <li>
@@ -368,8 +376,9 @@ function App() {
                     >
                       Setup
                     </button>
-                    — paths, download pinned <kbd>fnn</kbd>, install{" "}
-                    <kbd>config.yml</kbd>, save keychain password.
+                    — pick testnet or mainnet, point to your config and data
+                    folder, use the included node or download an update, then
+                    save your keychain password.
                   </li>
                   <li>
                     <button
@@ -379,7 +388,7 @@ function App() {
                     >
                       Node
                     </button>
-                    — start the process and watch logs.
+                    — start your node and watch live output.
                   </li>
                   <li>
                     <button
@@ -389,18 +398,16 @@ function App() {
                     >
                       Network
                     </button>
-                    — connect to public relays and call RPC.
+                    — connect to public relays and try queries or payments.
                   </li>
                 </ol>
               </section>
 
               <section className="panel panel-muted">
-                <h2 className="panel-title">Fiber (fnn) in this app</h2>
+                <h2 className="panel-title">Built-in Fiber node</h2>
                 <p className="panel-lead">
-                  A matching <strong>fnn</strong> is bundled as a Tauri sidecar
-                  when you run <code className="code-pill">tauri dev</code> or{" "}
-                  <code className="code-pill">tauri build</code> (after{" "}
-                  <code className="code-pill">prepare:fnn</code>). Release{" "}
+                  The app ships with a tested <strong>fnn</strong> (Fiber node)
+                  for your computer, version{" "}
                   <strong className="text-accent">
                     {pinnedInfo?.tag ?? fnnBinaryStatus?.pinnedTag ?? "…"}
                   </strong>
@@ -410,8 +417,8 @@ function App() {
                       <code className="code-pill">{pinnedInfo.assetFileName}</code>
                     </>
                   )}
-                  . You can still download another copy to app data or set a
-                  custom path in Setup.
+                  . Most people can leave this as-is. If you need another build,
+                  use <strong>Download</strong> or a custom path under Setup.
                 </p>
                 <div className="btn-row">
                   <button
@@ -435,9 +442,9 @@ function App() {
                   <section className="panel">
                     <h2 className="panel-title">Network & endpoints</h2>
                     <p className="panel-lead">
-                      These values are saved to{" "}
-                      <code className="code-pill">settings.json</code> (not the
-                      wallet password).
+                      Choose your network and where this app reaches CKB and your
+                      local node. These are saved in the app (separate from your
+                      keychain password).
                     </p>
                     <div className="field-grid">
                       <label className="field">
@@ -472,7 +479,7 @@ function App() {
                         />
                       </label>
                       <label className="field field-span-2">
-                        <span className="field-label">FNN JSON-RPC URL</span>
+                        <span className="field-label">Node API (HTTP)</span>
                         <input
                           className="input input-mono"
                           value={settings.fnnRpcUrl}
@@ -490,10 +497,15 @@ function App() {
                   </section>
 
                   <section className="panel">
-                    <h2 className="panel-title">Paths</h2>
+                    <h2 className="panel-title">Folders & program</h2>
+                    <p className="panel-lead">
+                      Point to where your node stores data, your{" "}
+                      <code className="code-pill">config.yml</code>, and which
+                      program runs. Defaults work for many installs.
+                    </p>
                     <div className="field-grid">
                       <label className="field field-span-2">
-                        <span className="field-label">FNN data directory (−d)</span>
+                        <span className="field-label">Data folder</span>
                         <input
                           className="input input-mono"
                           value={settings.fnnDataDir}
@@ -507,7 +519,7 @@ function App() {
                         />
                       </label>
                       <label className="field field-span-2">
-                        <span className="field-label">config.yml path (−c)</span>
+                        <span className="field-label">Configuration file</span>
                         <input
                           className="input input-mono"
                           value={settings.fnnConfigPath}
@@ -521,7 +533,7 @@ function App() {
                         />
                       </label>
                       <label className="field field-span-2">
-                        <span className="field-label">fnn binary</span>
+                        <span className="field-label">Node program (optional)</span>
                         <input
                           className="input input-mono"
                           value={settings.fnnBinaryPath}
@@ -531,7 +543,7 @@ function App() {
                               fnnBinaryPath: e.target.value,
                             })
                           }
-                          placeholder="Bundled fnn by default; override with a custom path"
+                          placeholder="Leave blank to use the copy bundled with this app"
                           spellCheck={false}
                         />
                       </label>
@@ -553,13 +565,12 @@ function App() {
                   </section>
 
                   <section className="panel">
-                    <h2 className="panel-title">Fiber binary</h2>
+                    <h2 className="panel-title">Included node & updates</h2>
                     <p className="panel-lead">
-                      The desktop build includes a pinned <strong>fnn</strong>{" "}
-                      sidecar. Use <strong>Use bundled</strong> to switch back
-                      after testing a downloaded build; <strong>Download</strong>{" "}
-                      puts the same release under app data if you want a separate
-                      copy.
+                      Prefer <strong>Use app-included node</strong> unless you
+                      know you need another build. <strong>Download</strong>{" "}
+                      saves the same official release into app data and switches
+                      to it—handy if the bundled file is missing.
                     </p>
 
                     {fnnBinaryStatus && (
@@ -568,23 +579,23 @@ function App() {
                         role="status"
                       >
                         <div className="callout-title">
-                          Pinned{" "}
+                          Official release{" "}
                           <code className="code-pill">
                             {fnnBinaryStatus.pinnedTag}
                           </code>
                         </div>
                         <ul className="callout-list">
                           <li>
-                            <strong>Sidecar present:</strong>{" "}
+                            <strong>Built-in copy:</strong>{" "}
                             {fnnBinaryStatus.bundledAvailable
                               ? "yes"
-                              : "no — run prepare:fnn (or open dev/build once)"}
+                              : "not found — use Download below, or reinstall the app"}
                           </li>
                           <li>
-                            <strong>Active binary:</strong>{" "}
+                            <strong>Currently using:</strong>{" "}
                             {fnnBinaryStatus.isBundled
-                              ? "bundled with the app"
-                              : "downloaded or custom path"}
+                              ? "the app-included build"
+                              : "a downloaded or custom program path"}
                           </li>
                           {fnnBinaryStatus.bundledPath && (
                             <li className="callout-mono">
@@ -603,7 +614,7 @@ function App() {
                           >
                             {toolsBusy === "useBundled"
                               ? "Switching…"
-                              : "Use bundled fnn"}
+                              : "Use app-included node"}
                           </button>
                         </div>
                       </div>
@@ -614,10 +625,10 @@ function App() {
                       <li>
                         <div className="action-card">
                           <div className="action-card-body">
-                            <h3>Download fnn (app data)</h3>
+                            <h3>Download official node</h3>
                             <p>
-                              Same pinned release into app support; switches the
-                              active path to that copy.
+                              Fetches the same release into this app&apos;s data
+                              folder and switches your settings to use it.
                             </p>
                           </div>
                           <button
@@ -633,10 +644,10 @@ function App() {
                       <li>
                         <div className="action-card">
                           <div className="action-card-body">
-                            <h3>Install config</h3>
+                            <h3>Reset config from template</h3>
                             <p>
-                              Overwrites your config path with upstream YAML and
-                              sets <code>ckb.rpc_url</code> from settings.
+                              Replaces your config file with the upstream example
+                              and fills in the CKB RPC address from Setup.
                             </p>
                           </div>
                           <button
@@ -652,10 +663,10 @@ function App() {
                       <li>
                         <div className="action-card">
                           <div className="action-card-body">
-                            <h3>Patch RPC only</h3>
+                            <h3>Update CKB address only</h3>
                             <p>
-                              Keep existing file; update only{" "}
-                              <code>ckb.rpc_url</code>.
+                              Keeps your existing file; only updates the CKB RPC
+                              line to match Setup.
                             </p>
                           </div>
                           <button
@@ -674,12 +685,12 @@ function App() {
                   <section className="panel">
                     <h2 className="panel-title">Security</h2>
                     <p className="panel-lead">
-                      <code className="code-pill">FIBER_SECRET_KEY_PASSWORD</code>{" "}
-                      lives in the OS keychain only. Required to start FNN.
+                      Your node needs a password to unlock keys. It is stored only
+                      in the system keychain (never in plain settings files).
                     </p>
                     <div className="field-grid">
                       <label className="field field-span-2">
-                        <span className="field-label">Keychain password</span>
+                        <span className="field-label">Node key password</span>
                         <input
                           type="password"
                           className="input"
@@ -718,10 +729,10 @@ function App() {
           {tab === "node" && (
             <div className="panel-stack">
               <section className="panel">
-                <h2 className="panel-title">Process</h2>
+                <h2 className="panel-title">Run your node</h2>
                 <p className="panel-lead">
-                  Runs <code className="code-pill">fnn -c … -d …</code> with
-                  environment from the app. Logs stream below.
+                  Uses the folders and config you set in Setup. Recent output
+                  appears in the log below.
                 </p>
                 <div className="btn-row">
                   <button
@@ -753,7 +764,7 @@ function App() {
                   <span className="panel-meta">
                     {fnnLogs.length === 0
                       ? "No output yet"
-                      : `${fnnLogs.length} lines (tail)`}
+                      : `${fnnLogs.length} recent lines`}
                   </span>
                 </div>
                 <textarea
@@ -761,8 +772,8 @@ function App() {
                   readOnly
                   value={fnnLogs.join("\n")}
                   spellCheck={false}
-                  aria-label="FNN process logs"
-                  placeholder="Start the node to see fnn stdout/stderr…"
+                  aria-label="Node log output"
+                  placeholder="Start the node to see live messages here…"
                 />
               </section>
             </div>
@@ -771,14 +782,23 @@ function App() {
           {tab === "network" && (
             <div className="panel-stack network-layout">
               <section className="panel">
-                <h2 className="panel-title">RPC actions</h2>
+                <h2 className="panel-title">Talk to your node</h2>
                 <p className="panel-lead">
-                  Calls go through the Tauri bridge to{" "}
-                  <code className="code-pill">fnn_rpc_url</code>. Pubkeys match{" "}
-                  <code>pubkey</code> (Fiber v0.8+).
+                  These buttons send requests to your node at the{" "}
+                  <strong>Node API</strong> address from Setup. Results appear on
+                  the right. Public relay keys match the{" "}
+                  <a
+                    className="inline-link"
+                    href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    public nodes
+                  </a>{" "}
+                  list for Fiber v0.8+.
                 </p>
 
-                <h3 className="subhead">Queries</h3>
+                <h3 className="subhead">Look up status</h3>
                 <div className="chip-actions">
                   <button
                     type="button"
@@ -786,7 +806,7 @@ function App() {
                     disabled={!!rpcBusy}
                     onClick={() => void runRpc("info", "node_info", [])}
                   >
-                    {rpcBusy === "info" ? "…" : "node_info"}
+                    {rpcBusy === "info" ? "…" : "Node info"}
                   </button>
                   <button
                     type="button"
@@ -796,7 +816,7 @@ function App() {
                       void runRpc("channels", "list_channels", [{}])
                     }
                   >
-                    {rpcBusy === "channels" ? "…" : "list_channels"}
+                    {rpcBusy === "channels" ? "…" : "My channels"}
                   </button>
                   <button
                     type="button"
@@ -806,7 +826,7 @@ function App() {
                       void runRpc("graph", "graph_nodes", { limit: 50 })
                     }
                   >
-                    {rpcBusy === "graph" ? "…" : "graph_nodes"}
+                    {rpcBusy === "graph" ? "…" : "Network map"}
                   </button>
                 </div>
 
@@ -823,7 +843,7 @@ function App() {
                       ])
                     }
                   >
-                    {rpcBusy === "connect1" ? "…" : "Connect node 1"}
+                    {rpcBusy === "connect1" ? "…" : "Connect relay 1"}
                   </button>
                   <button
                     type="button"
@@ -836,16 +856,16 @@ function App() {
                       ])
                     }
                   >
-                    {rpcBusy === "connect2" ? "…" : "Connect node 2"}
+                    {rpcBusy === "connect2" ? "…" : "Connect relay 2"}
                   </button>
                 </div>
 
-                <h3 className="subhead">Channel & payments</h3>
+                <h3 className="subhead">Channels & payments</h3>
                 <div className="rpc-form-blocks">
                   <div className="rpc-form-block">
                     <label className="field">
                       <span className="field-label">
-                        Open channel — funding (hex u128)
+                        Open channel — amount (advanced: hex)
                       </span>
                       <div className="inline-field">
                         <input
@@ -869,7 +889,7 @@ function App() {
                             ]);
                           }}
                         >
-                          open_channel
+                          Open channel
                         </button>
                       </div>
                     </label>
@@ -902,7 +922,7 @@ function App() {
                             ])
                           }
                         >
-                          new_invoice
+                          Create invoice
                         </button>
                       </div>
                     </label>
@@ -928,7 +948,7 @@ function App() {
                             ])
                           }
                         >
-                          send_payment
+                          Send payment
                         </button>
                       </div>
                     </label>
@@ -938,7 +958,7 @@ function App() {
 
               <section className="panel panel-sticky-response">
                 <div className="panel-head">
-                  <h2 className="panel-title">Response</h2>
+                  <h2 className="panel-title">Result</h2>
                   <span className="panel-meta">
                     {rpcBusy ? "Working…" : "Ready"}
                   </span>
@@ -948,8 +968,8 @@ function App() {
                   readOnly
                   value={rpcOut}
                   spellCheck={false}
-                  placeholder="JSON-RPC result or error will appear here."
-                  aria-label="Last RPC response"
+                  placeholder="The last reply from your node will show here."
+                  aria-label="Last result from your node"
                 />
               </section>
             </div>
