@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "setup": "bun install && bun run prepare:fnn",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
