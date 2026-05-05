@@ -1,0 +1,61 @@
+# CI: Linux runs frontend build, rustfmt, and clippy. macOS runs a full `tauri build` (ad-hoc signed .app
+# unless you add Apple signing env vars in the workflow or to the repo).
+#
+# Optional Apple notarization / Developer ID signing typically uses GitHub Encrypted Secrets such as
+# APPLE_CERTIFICATE (base64 .p12), APPLE_CERTIFICATE_PASSWORD, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID.
+# See: https://v2.tauri.app/distribute/sign/macos/
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run prepare:fnn
+
+      - run: bun run build
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - run: cargo fmt --all -- --check
+        working-directory: src-tauri
+
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+
+  bundle-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run prepare:fnn
+
+      - run: bun run tauri build

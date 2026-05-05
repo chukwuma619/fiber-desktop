@@ -4,21 +4,23 @@
   "version": "0.1.0",
   "identifier": "com.ebube.fiber-desktop",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run prepare:fnn && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run prepare:fnn && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
         "title": "fiber-desktop",
-        "width": 800,
-        "height": 600
+        "width": 1040,
+        "height": 720,
+        "minWidth": 800,
+        "minHeight": 560
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://localhost:1420 http://127.0.0.1:1420 ws://localhost:1420 ws://127.0.0.1:1420 ws://localhost:1421 ws://127.0.0.1:1421; img-src 'self' blob: data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {
@@ -30,6 +32,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "externalBin": ["binaries/fnn"],
+    "macOS": {
+      "entitlements": "entitlements/macOS/Entitlements.plist"
+    }
   }
 }

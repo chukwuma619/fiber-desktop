@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare:fnn": "bash scripts/prepare-fnn-sidecar.sh"
   },
   "dependencies": {
     "react": "^19.1.0",

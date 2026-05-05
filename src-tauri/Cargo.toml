@@ -22,4 +22,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+keyring = "3"
+ureq = { version = "2.10", features = ["json"] }
+parking_lot = "0.12"
+flate2 = "1.0"
+tar = "0.4"
 
