@@ -354,8 +354,8 @@ function App() {
         <div className="nav-brand">
           <span className="nav-brand-mark" aria-hidden />
           <div>
-            <div className="nav-brand-title">Fiber Desktop</div>
-            <div className="nav-brand-sub">Your Fiber node, made simple</div>
+            <div className="nav-brand-title">Fiber Network</div>
+            <div className="nav-brand-sub">Desktop · run your node locally</div>
           </div>
         </div>
         <nav className="nav-list">
@@ -384,11 +384,37 @@ function App() {
 
       <div className="shell-main">
         <header className="top-bar">
-          <div className="top-bar-title">
-            <h1>{TABS.find((x) => x.id === tab)?.label}</h1>
-            <p className="top-bar-desc">
-              {TABS.find((x) => x.id === tab)?.hint}
-            </p>
+          <div className="top-bar-left">
+            <div className="top-bar-title">
+              <h1>{TABS.find((x) => x.id === tab)?.label}</h1>
+              <p className="top-bar-desc">
+                {TABS.find((x) => x.id === tab)?.hint}
+              </p>
+            </div>
+            <nav
+              className="top-bar-links"
+              aria-label="Fiber Network on the web"
+            >
+              <a
+                className="top-bar-link"
+                href="https://docs.fiber.world/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Documentation
+              </a>
+              <span className="top-bar-link-sep" aria-hidden>
+                ·
+              </span>
+              <a
+                className="top-bar-link"
+                href="https://www.fiber.world/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                fiber.world
+              </a>
+            </nav>
           </div>
           {fnnStatus && (
             <div
