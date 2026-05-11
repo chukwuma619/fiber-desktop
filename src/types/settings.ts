@@ -27,4 +27,10 @@ export interface FnnBinaryStatus {
   isBundled: boolean;
   bundledAvailable: boolean;
   activePath: string;
+  executableReady: boolean;
+}
+
+export interface CkbKeyStatus {
+  ready: boolean;
+  keyPath: string;
 }

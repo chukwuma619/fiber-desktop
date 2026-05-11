@@ -36,6 +36,8 @@ pub struct FnnBinaryStatus {
     pub is_bundled: bool,
     pub bundled_available: bool,
     pub active_path: String,
+    /// True when `active_path` points to an existing file (spawnable `fnn`).
+    pub executable_ready: bool,
 }
 
 #[tauri::command]
@@ -46,12 +48,48 @@ pub fn fnn_binary_status(app: tauri::AppHandle) -> Result<FnnBinaryStatus, Strin
     let bundled_path = bundled.as_ref().map(|p| p.to_string_lossy().into_owned());
     let active = Path::new(&settings.fnn_binary_path);
     let is_bundled = bundled_fnn::is_active_path_bundled(&app, active);
+    let executable_ready = !settings.fnn_binary_path.trim().is_empty() && active.is_file();
     Ok(FnnBinaryStatus {
         pinned_tag: fnn_fetch::PINNED_FNN_TAG.to_string(),
         bundled_path,
         is_bundled,
         bundled_available,
         active_path: settings.fnn_binary_path,
+        executable_ready,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbKeyStatus {
+    pub ready: bool,
+    pub key_path: String,
+}
+
+/// Ensures `{data_dir}/ckb` exists and returns its absolute path (for revealing in the system file manager).
+#[tauri::command]
+pub fn prepare_ckb_key_folder(app: tauri::AppHandle) -> Result<String, String> {
+    let s = settings::load_or_default(&app)?;
+    let key_path = fnn_precheck::ckb_node_key_path(&s.fnn_data_dir);
+    let ckb_dir = key_path
+        .parent()
+        .ok_or_else(|| "invalid CKB key path".to_string())?;
+    std::fs::create_dir_all(ckb_dir).map_err(|e| e.to_string())?;
+    Ok(ckb_dir.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn ckb_key_status(app: tauri::AppHandle) -> Result<CkbKeyStatus, String> {
+    let s = settings::load_or_default(&app)?;
+    let key_path = fnn_precheck::ckb_node_key_path(&s.fnn_data_dir);
+    let key_path_str = key_path.to_string_lossy().into_owned();
+    let ready = key_path.is_file()
+        && std::fs::metadata(&key_path)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
+    Ok(CkbKeyStatus {
+        ready,
+        key_path: key_path_str,
     })
 }
 
@@ -104,6 +142,7 @@ pub fn get_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
 
 #[tauri::command]
 pub fn save_settings(app: tauri::AppHandle, mut settings: AppSettings) -> Result<(), String> {
+    settings::normalize_app_settings(&app, &mut settings)?;
     settings.apply_network_defaults();
     settings::save(&app, &settings)
 }

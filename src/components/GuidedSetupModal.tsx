@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AppSettings } from "../types/settings";
+import type { AppSettings, CkbKeyStatus } from "../types/settings";
 import type { NetworkId } from "../lib/publicNodes";
 
 export type GuidedStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -35,6 +35,9 @@ type Props = {
   /** Shown inside the modal so failures are visible above the dimmed UI. */
   blockingError: string | null;
   onDismissBlockingError: () => void;
+  ckbKeyStatus: CkbKeyStatus | null;
+  onRefreshCkbKey: () => void;
+  onOpenKeyFolder: () => Promise<void>;
 };
 
 export function GuidedSetupModal({
@@ -64,6 +67,9 @@ export function GuidedSetupModal({
   onConfigInstalled,
   blockingError,
   onDismissBlockingError,
+  ckbKeyStatus,
+  onRefreshCkbKey,
+  onOpenKeyFolder,
 }: Props) {
   if (!open) return null;
 
@@ -149,15 +155,19 @@ export function GuidedSetupModal({
           {step === 0 && (
             <div className="guided-step">
               <p className="guided-lead">
-                This app runs a <strong>Fiber node</strong> on your computer. You
-                do not need the terminal—we will save the right folders, download
-                a starter settings file, and help you set the password your node
-                uses to unlock keys.
+                This app runs a <strong>Fiber node</strong> on your computer. Your{" "}
+                <strong>CKB private key file</strong> is how this node identifies
+                on-chain—the same role as a wallet for Fiber (see the last step).
+                We set up folders, config, and your unlock password so you can go
+                from zero to a running node without the terminal.
               </p>
               <ul className="guided-bullets">
                 <li>Pick testnet or mainnet</li>
                 <li>Create your <code className="code-pill">config.yml</code></li>
-                <li>Save your key password in the system keychain</li>
+                <li>
+                  Add your CKB key file (wallet identity) and save your unlock
+                  password to the system keychain
+                </li>
                 <li>Start the node with one click</li>
               </ul>
               <p className="guided-note">
@@ -373,13 +383,15 @@ export function GuidedSetupModal({
           {step === 6 && (
             <div className="guided-step">
               <p className="guided-lead">
-                Before starting, place your CKB private key (one line of hex) at{" "}
+                <strong>Connect your wallet (CKB key).</strong> Place your CKB
+                private key—one line of hex—at{" "}
                 <code className="code-pill">
                   {settings.fnnDataDir.replace(/\/$/, "")}/ckb/key
                 </code>
-                — usually from <code className="code-pill">ckb-cli account export</code>
-                . The password you saved only encrypts this file; it does not create
-                the key.{" "}
+                . Usually exported with{" "}
+                <code className="code-pill">ckb-cli account export</code>. The
+                password you saved only encrypts this file; it does not create the
+                key.{" "}
                 <a
                   className="inline-link"
                   href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
@@ -390,6 +402,37 @@ export function GuidedSetupModal({
                 </a>
                 .
               </p>
+              <div className="guided-actions guided-actions-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busy}
+                  onClick={() => void onOpenKeyFolder()}
+                >
+                  Open key folder
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busy}
+                  onClick={() => onRefreshCkbKey()}
+                >
+                  Check key file
+                </button>
+              </div>
+              {ckbKeyStatus?.ready ? (
+                <div className="guided-callout guided-callout-ok" role="status">
+                  Key file looks good at{" "}
+                  <code className="code-pill">{ckbKeyStatus.keyPath}</code>. You can
+                  start the node.
+                </div>
+              ) : (
+                <p className="guided-note">
+                  After you add <code className="code-pill">key</code>, press{" "}
+                  <strong>Check key file</strong>—the app scans every few seconds
+                  too.
+                </p>
+              )}
               <p className="guided-lead">
                 If something fails, open the <strong>Node</strong> tab and read the
                 log messages (colors are stripped for readability).
@@ -398,7 +441,7 @@ export function GuidedSetupModal({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={busy}
+                  disabled={busy || !ckbKeyStatus?.ready}
                   onClick={() => void onStartNode()}
                 >
                   Start my node

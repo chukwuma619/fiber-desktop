@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
 import {
@@ -8,6 +9,7 @@ import {
 import { PUBLIC_NODE_PUBKEYS, type NetworkId } from "./lib/publicNodes";
 import type {
   AppSettings,
+  CkbKeyStatus,
   FnnBinaryStatus,
   FnnStatusView,
   Network,
@@ -69,7 +71,10 @@ function App() {
   const [guidedWizardPassword, setGuidedWizardPassword] = useState("");
   const [guidedConfigInstalled, setGuidedConfigInstalled] = useState(false);
   const [guidedPasswordSavedOk, setGuidedPasswordSavedOk] = useState(false);
-  const [guidanceComplete, setGuidanceComplete] = useState(readGuidanceComplete);
+  const [guidanceComplete, setGuidanceComplete] = useState(() =>
+    readGuidanceComplete(),
+  );
+  const [ckbKeyStatus, setCkbKeyStatus] = useState<CkbKeyStatus | null>(null);
   const guidedAutoOpened = useRef(false);
 
   const refreshSettings = useCallback(async () => {
@@ -123,17 +128,32 @@ function App() {
     }
   }, []);
 
+  const refreshCkbKeyStatus = useCallback(async () => {
+    try {
+      setCkbKeyStatus(await invoke<CkbKeyStatus>("ckb_key_status"));
+    } catch {
+      setCkbKeyStatus(null);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshSettings();
     void refreshSecurity();
     void refreshPinned();
     void refreshFnnBinaryStatus();
+    void refreshCkbKeyStatus();
   }, [
     refreshSettings,
     refreshSecurity,
     refreshPinned,
     refreshFnnBinaryStatus,
+    refreshCkbKeyStatus,
   ]);
+
+  useEffect(() => {
+    const t = window.setInterval(() => void refreshCkbKeyStatus(), 4000);
+    return () => window.clearInterval(t);
+  }, [refreshCkbKeyStatus]);
 
   useEffect(() => {
     const t = window.setInterval(() => void pollFnn(), 2000);
@@ -147,14 +167,13 @@ function App() {
     if (typeof localStorage === "undefined") return;
     if (localStorage.getItem(GUIDED_SETUP_COMPLETE) === "1") return;
     if (localStorage.getItem(GUIDED_SETUP_DISMISSED) === "1") return;
-    if (hasPw) return;
     guidedAutoOpened.current = true;
     setGuidedStep(0);
     setGuidedWizardPassword("");
     setGuidedConfigInstalled(false);
     setGuidedPasswordSavedOk(false);
     setGuidedOpen(true);
-  }, [settings, hasPw]);
+  }, [settings]);
 
   useEffect(() => {
     if (!guidedOpen) return;
@@ -300,6 +319,17 @@ function App() {
     }
   }
 
+  async function openCkbKeyFolder() {
+    setLoadError(null);
+    try {
+      const dir = await invoke<string>("prepare_ckb_key_folder");
+      await openPath(dir);
+      void refreshCkbKeyStatus();
+    } catch (e) {
+      setLoadError(String(e));
+    }
+  }
+
   function applyNetworkDefaults(net: NetworkId) {
     if (!settings) return;
     const next = { ...settings, network: net };
@@ -333,10 +363,7 @@ function App() {
 
   const nodeKeys = PUBLIC_NODE_PUBKEYS[netId];
 
-  const programReady = Boolean(
-    fnnBinaryStatus &&
-      (fnnBinaryStatus.bundledAvailable || !fnnBinaryStatus.isBundled),
-  );
+  const programReady = Boolean(fnnBinaryStatus?.executableReady);
 
   const canContinuePasswordStep =
     hasPw === true || guidedPasswordSavedOk;
@@ -452,11 +479,13 @@ function App() {
             <div className="panel-stack">
               {!guidanceComplete && (
                 <section className="panel panel-get-started">
-                  <h2 className="panel-title">New here?</h2>
+                  <h2 className="panel-title">First launch</h2>
                   <p className="panel-lead">
-                    Use <strong>Guided setup</strong> to pick your network, create
-                    your config file, save your password, and start your node—no
-                    guessing which field comes first.
+                    This node uses a <strong>CKB private key file</strong> as its
+                    on-chain identity—the same role as a wallet for Fiber. Open{" "}
+                    <strong>Guided setup</strong> and we will walk you through
+                    network, config, placing your key, saving your unlock password,
+                    and starting the node in order.
                   </p>
                   <div className="get-started-actions">
                     <button
@@ -919,9 +948,21 @@ function App() {
               <section className="panel">
                 <h2 className="panel-title">Run your node</h2>
                 <p className="panel-lead">
-                  Uses the folders and config you set in Setup. You must also have a
-                  CKB private key file at{" "}
-                  <code className="code-pill">{"{data folder}/ckb/key"}</code> (see{" "}
+                  Uses the folders and config you set in Setup. Put your CKB private
+                  key (one line of hex) at{" "}
+                  <code className="code-pill">{"{data folder}/ckb/key"}</code>
+                  —that file is your <strong>wallet key</strong> for this node.{" "}
+                  <button
+                    type="button"
+                    className="inline-link inline-link-button"
+                    onClick={() => void openCkbKeyFolder()}
+                  >
+                    Open the key folder
+                  </button>
+                  {ckbKeyStatus?.ready ? (
+                    <span className="key-ready-badge"> · Key file detected</span>
+                  ) : null}{" "}
+                  See{" "}
                   <a
                     className="inline-link"
                     href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
@@ -929,8 +970,10 @@ function App() {
                     rel="noreferrer"
                   >
                     Fiber testnet nodes
-                  </a>
-                  ). Recent output appears below.
+                  </a>{" "}
+                  for exporting a key with{" "}
+                  <code className="code-pill">ckb-cli</code>. Recent output appears
+                  below.
                 </p>
                 <div className="btn-row">
                   <button
@@ -1210,6 +1253,9 @@ function App() {
           onConfigInstalled={() => setGuidedConfigInstalled(true)}
           blockingError={guidedOpen ? loadError : null}
           onDismissBlockingError={() => setLoadError(null)}
+          ckbKeyStatus={ckbKeyStatus}
+          onRefreshCkbKey={() => void refreshCkbKeyStatus()}
+          onOpenKeyFolder={openCkbKeyFolder}
         />
       )}
     </div>

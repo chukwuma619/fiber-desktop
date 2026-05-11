@@ -30,6 +30,8 @@ pub fn run() {
             commands::install_upstream_fnn_config,
             commands::apply_ckb_rpc_to_config_file,
             commands::fnn_binary_status,
+            commands::prepare_ckb_key_folder,
+            commands::ckb_key_status,
             commands::use_bundled_fnn_binary,
         ])
         .run(tauri::generate_context!())
