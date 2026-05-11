@@ -134,6 +134,30 @@ pub fn normalize_app_settings(app: &tauri::AppHandle, settings: &mut AppSettings
     Ok(())
 }
 
+/// Ensures default layout exists on disk as soon as settings are loaded (before save or guided setup).
+/// Creates the data directory, `ckb/` for the wallet key file, and the config file parent directory.
+pub fn ensure_fnn_storage_exists(settings: &AppSettings) -> Result<(), String> {
+    let data = Path::new(&settings.fnn_data_dir);
+    std::fs::create_dir_all(data).map_err(|e| {
+        format!(
+            "could not create Fiber data folder at {}: {e}",
+            data.display()
+        )
+    })?;
+    std::fs::create_dir_all(data.join("ckb")).map_err(|e| {
+        format!("could not create CKB key folder at {}: {e}", data.join("ckb").display())
+    })?;
+    if let Some(parent) = Path::new(&settings.fnn_config_path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "could not create folder for config file {}: {e}",
+                settings.fnn_config_path
+            )
+        })?;
+    }
+    Ok(())
+}
+
 pub fn load_or_default(app: &tauri::AppHandle) -> Result<AppSettings, String> {
     let path = settings_path(app)?;
     let mut settings = if path.exists() {
@@ -144,11 +168,10 @@ pub fn load_or_default(app: &tauri::AppHandle) -> Result<AppSettings, String> {
     };
 
     normalize_app_settings(app, &mut settings)?;
+    ensure_fnn_storage_exists(&settings)?;
 
-    if settings.fnn_binary_path.is_empty() {
-        if let Some(p) = crate::bundled_fnn::bundled_executable_path(app) {
-            settings.fnn_binary_path = p.to_string_lossy().into_owned();
-        }
+    if let Some(p) = crate::bundled_fnn::resolve_fnn_binary_path(app, &settings.fnn_binary_path) {
+        settings.fnn_binary_path = p;
     }
 
     Ok(settings)

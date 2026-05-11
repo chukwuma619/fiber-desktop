@@ -54,3 +54,36 @@ fn paths_refer_to_same_file(a: &Path, b: &Path) -> bool {
         _ => false,
     }
 }
+
+#[cfg(windows)]
+fn fnn_exe_name() -> &'static str {
+    "fnn.exe"
+}
+
+#[cfg(not(windows))]
+fn fnn_exe_name() -> &'static str {
+    "fnn"
+}
+
+fn find_on_path(name: &str) -> Option<PathBuf> {
+    std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths).find_map(|dir| {
+            let candidate = dir.join(name);
+            candidate.is_file().then_some(candidate)
+        })
+    })
+}
+
+/// Prefer an existing configured path, else bundled sidecar, else `fnn` on `PATH` (Homebrew, etc.).
+pub fn resolve_fnn_binary_path(app: &tauri::AppHandle, configured: &str) -> Option<String> {
+    let c = configured.trim();
+    if !c.is_empty() && Path::new(c).is_file() {
+        return Some(c.to_string());
+    }
+    if let Some(p) = bundled_executable_path(app) {
+        if p.is_file() {
+            return Some(p.to_string_lossy().into_owned());
+        }
+    }
+    find_on_path(fnn_exe_name()).map(|p| p.to_string_lossy().into_owned())
+}
