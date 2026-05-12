@@ -1,7 +1,10 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// @ts-expect-error process is a nodejs global
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
@@ -27,6 +30,16 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+    },
+  },
+
+  build: {
+    rollupOptions: {
+      input: {
+        index: path.resolve(__dirname, "index.html"),
+        shell: path.resolve(__dirname, "shell.html"),
+        howItWorks: path.resolve(__dirname, "how-it-works.html"),
+      },
     },
   },
 }));
