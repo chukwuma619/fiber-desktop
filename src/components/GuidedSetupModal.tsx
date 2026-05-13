@@ -23,6 +23,9 @@ type Props = {
   wizardPassword: string;
   onWizardPasswordChange: (v: string) => void;
   onSaveWizardPassword: () => Promise<void>;
+  wizardPrivKey: string;
+  onWizardPrivKeyChange: (v: string) => void;
+  onSaveWizardPrivKey: () => Promise<void>;
   hasPw: boolean | null;
   /** Continue on password step: confirmed keychain read, or successful save in this flow. */
   canContinuePasswordStep: boolean;
@@ -58,6 +61,9 @@ export function GuidedSetupModal({
   wizardPassword,
   onWizardPasswordChange,
   onSaveWizardPassword,
+  wizardPrivKey,
+  onWizardPrivKeyChange,
+  onSaveWizardPrivKey,
   hasPw,
   canContinuePasswordStep,
   passwordSavedInGuided,
@@ -383,26 +389,46 @@ export function GuidedSetupModal({
           {step === 6 && (
             <div className="guided-step">
               <p className="guided-lead">
-                <strong>Connect your wallet (CKB key).</strong> Place your CKB
-                private key—one line of hex—at{" "}
+                <strong>Connect your wallet (CKB key).</strong> Paste your
+                private key (64 hex characters, optional{" "}
+                <code className="code-pill">0x</code> prefix) below. It is saved
+                to{" "}
                 <code className="code-pill">
                   {settings.fnnDataDir.replace(/\/$/, "")}/ckb/key
                 </code>
-                . Usually exported with{" "}
-                <code className="code-pill">ckb-cli account export</code>. The
-                password you saved only encrypts this file; it does not create the
-                key.{" "}
+                . The password you saved only encrypts this file; it does not
+                create the key.{" "}
                 <a
                   className="inline-link"
                   href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Full steps in the Fiber docs
+                  Fiber docs
                 </a>
                 .
               </p>
+              <label className="field guided-field">
+                <span className="field-label">Private key (hex)</span>
+                <input
+                  type="password"
+                  className="input input-mono"
+                  value={wizardPrivKey}
+                  onChange={(e) => onWizardPrivKeyChange(e.target.value)}
+                  placeholder="64 hex characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </label>
               <div className="guided-actions guided-actions-row">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy || !wizardPrivKey.trim()}
+                  onClick={() => void onSaveWizardPrivKey()}
+                >
+                  Save key to disk
+                </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -428,9 +454,8 @@ export function GuidedSetupModal({
                 </div>
               ) : (
                 <p className="guided-note">
-                  After you add <code className="code-pill">key</code>, press{" "}
-                  <strong>Check key file</strong>—the app scans every few seconds
-                  too.
+                  After saving, use <strong>Check key file</strong> if needed—the
+                  app also scans every few seconds.
                 </p>
               )}
               <p className="guided-lead">

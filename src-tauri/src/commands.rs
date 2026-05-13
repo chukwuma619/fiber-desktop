@@ -93,6 +93,29 @@ pub fn ckb_key_status(app: tauri::AppHandle) -> Result<CkbKeyStatus, String> {
     })
 }
 
+/// Writes the CKB secp256k1 private key (64 hex chars, optional `0x` prefix) to `{data_dir}/ckb/key`.
+#[tauri::command]
+pub fn write_ckb_private_key(app: tauri::AppHandle, key: String) -> Result<(), String> {
+    let trimmed = key.trim();
+    let hex_body = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+        .unwrap_or(trimmed);
+    if hex_body.len() != 64 || !hex_body.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(
+            "Private key must be exactly 64 hex characters (optional 0x prefix).".to_string(),
+        );
+    }
+    let s = settings::load_or_default(&app)?;
+    let key_path = fnn_precheck::ckb_node_key_path(&s.fnn_data_dir);
+    let ckb_dir = key_path
+        .parent()
+        .ok_or_else(|| "invalid CKB key path".to_string())?;
+    std::fs::create_dir_all(ckb_dir).map_err(|e| e.to_string())?;
+    std::fs::write(&key_path, hex_body).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn use_bundled_fnn_binary(app: tauri::AppHandle) -> Result<String, String> {
     let p = bundled_fnn::bundled_executable_path(&app).ok_or_else(|| {

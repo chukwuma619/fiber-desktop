@@ -141,6 +141,8 @@ function App() {
   const [guidedOpen, setGuidedOpen] = useState(false);
   const [guidedStep, setGuidedStep] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
   const [guidedWizardPassword, setGuidedWizardPassword] = useState("");
+  const [guidedWizardPrivKey, setGuidedWizardPrivKey] = useState("");
+  const [nodeTabPrivKey, setNodeTabPrivKey] = useState("");
   const [guidedConfigInstalled, setGuidedConfigInstalled] = useState(false);
   const [guidedPasswordSavedOk, setGuidedPasswordSavedOk] = useState(false);
   const [guidanceComplete, setGuidanceComplete] = useState(() =>
@@ -253,6 +255,7 @@ function App() {
     guidedAutoOpened.current = true;
     setGuidedStep(0);
     setGuidedWizardPassword("");
+    setGuidedWizardPrivKey("");
     setGuidedConfigInstalled(false);
     setGuidedPasswordSavedOk(false);
     setGuidedOpen(true);
@@ -275,6 +278,7 @@ function App() {
   function openGuidedReset() {
     setGuidedStep(0);
     setGuidedWizardPassword("");
+    setGuidedWizardPrivKey("");
     setGuidedConfigInstalled(false);
     setGuidedPasswordSavedOk(false);
     setGuidedOpen(true);
@@ -305,6 +309,32 @@ function App() {
     } catch (e) {
       setLoadError(String(e));
     }
+  }
+
+  async function persistCkbPrivateKey(
+    keyInput: string,
+    onSuccessClear: () => void,
+  ) {
+    const t = keyInput.trim();
+    if (!t) return;
+    setLoadError(null);
+    try {
+      await invoke("write_ckb_private_key", { key: t });
+      await refreshCkbKeyStatus();
+      onSuccessClear();
+    } catch (e) {
+      setLoadError(String(e));
+    }
+  }
+
+  async function saveGuidedWizardPrivKey() {
+    await persistCkbPrivateKey(guidedWizardPrivKey, () =>
+      setGuidedWizardPrivKey(""),
+    );
+  }
+
+  async function saveNodeTabPrivKey() {
+    await persistCkbPrivateKey(nodeTabPrivKey, () => setNodeTabPrivKey(""));
   }
 
   async function savePassword(override?: string) {
@@ -1103,6 +1133,36 @@ function App() {
                     ) : null}
                   </div>
                 </div>
+                <div className="field node-key-paste-field">
+                  <span className="field-label">
+                    {ckbKeyStatus?.ready
+                      ? "Replace key (optional)"
+                      : "Paste private key (hex)"}
+                  </span>
+                  <div className="inline-field">
+                    <input
+                      type="password"
+                      className="input input-mono"
+                      value={nodeTabPrivKey}
+                      onChange={(e) => setNodeTabPrivKey(e.target.value)}
+                      placeholder="64 hex characters"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      disabled={!nodeTabPrivKey.trim()}
+                      onClick={() => void saveNodeTabPrivKey()}
+                    >
+                      Save to disk
+                    </button>
+                  </div>
+                  <p className="field-hint">
+                    Writes to the path above. Optional <code className="code-pill">0x</code>{" "}
+                    prefix is accepted.
+                  </p>
+                </div>
                 <p className="field-hint key-file-docs-hint">
                   Exporting a key and testnet walkthrough:{" "}
                   <a
@@ -1198,6 +1258,9 @@ function App() {
           onSaveWizardPassword={async () => {
             await savePassword(guidedWizardPassword);
           }}
+          wizardPrivKey={guidedWizardPrivKey}
+          onWizardPrivKeyChange={setGuidedWizardPrivKey}
+          onSaveWizardPrivKey={saveGuidedWizardPrivKey}
           hasPw={hasPw}
           canContinuePasswordStep={canContinuePasswordStep}
           passwordSavedInGuided={guidedPasswordSavedOk}

@@ -44,6 +44,7 @@ pub fn run() {
             commands::fnn_binary_status,
             commands::prepare_ckb_key_folder,
             commands::ckb_key_status,
+            commands::write_ckb_private_key,
             commands::use_bundled_fnn_binary,
         ])
         .run(tauri::generate_context!())
