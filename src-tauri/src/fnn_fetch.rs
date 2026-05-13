@@ -4,6 +4,7 @@ use flate2::read::GzDecoder;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use tar::Archive;
+use tauri::Manager;
 
 /// Pinned tag; bump with Fiber breaking RPC changes.
 pub const PINNED_FNN_TAG: &str = "v0.8.1";
@@ -55,15 +56,18 @@ fn github_asset_file_name() -> Result<String, String> {
     Ok(file)
 }
 
-fn tools_dir() -> Result<PathBuf, String> {
-    Ok(crate::settings::fiber_desktop_root()?
+fn tools_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
         .join("tools")
         .join(PINNED_FNN_TAG.trim_start_matches('v')))
 }
 
-pub fn download_and_install(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub fn download_and_install(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let meta = pinned_fnn_metadata()?;
-    let out_root = tools_dir()?;
+    let out_root = tools_dir(app)?;
     let strip = PINNED_FNN_TAG.trim_start_matches('v');
     let expected_bin = out_root.join(if cfg!(windows) {
         format!("fnn-{strip}/fnn.exe")
