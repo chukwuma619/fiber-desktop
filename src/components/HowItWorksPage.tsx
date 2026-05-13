@@ -206,7 +206,7 @@ export function HowItWorksPage() {
               </div>
             </div>
             <p>
-              Click <strong>Stop</strong> at any time to gracefully shut down the node. Your
+              Click <strong>Stop node</strong> at any time to gracefully shut down the node. Your
               channels remain open on-chain; they are not affected by stopping the app.
             </p>
           </section>

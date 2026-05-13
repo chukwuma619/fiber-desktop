@@ -82,6 +82,47 @@ function deriveNodePresence(
   return "stopped";
 }
 
+type StartStopNodeButtonProps = {
+  locallyRunning: boolean;
+  disableStartBecauseRemote: boolean;
+  onStart: () => void | Promise<void>;
+  onStop: () => void | Promise<void>;
+};
+
+function StartStopNodeButton({
+  locallyRunning,
+  disableStartBecauseRemote,
+  onStart,
+  onStop,
+}: StartStopNodeButtonProps) {
+  if (locallyRunning) {
+    return (
+      <button
+        type="button"
+        className="btn btn-danger-ghost"
+        onClick={() => void onStop()}
+      >
+        Stop node
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="btn btn-primary"
+      disabled={disableStartBecauseRemote}
+      title={
+        disableStartBecauseRemote
+          ? "Another fnn is already using this data folder or RPC is live elsewhere. Stop that process first, then start here."
+          : undefined
+      }
+      onClick={() => void onStart()}
+    >
+      Start node
+    </button>
+  );
+}
+
 function App() {
   const [tab, setTab] = useState<TabId>("overview");
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -565,7 +606,7 @@ function App() {
                       {nodePresence === "running"
                         ? "It should answer at the address you set under Setup → Network."
                         : nodePresence === "remote"
-                          ? "Something is already serving your Node API URL—try the Network tab. Stop the other fnn if you want this window to own logs and Start."
+                          ? "Something is already serving your Node API URL—try the Network tab. Use Stop node when this app owns the process, or stop the other fnn first if you want to start here."
                           : nodePresence === "crashed"
                             ? "Open the Node tab and read the logs for details."
                             : "Use Guided setup above, then start your node here."}
@@ -579,20 +620,12 @@ function App() {
                     >
                       Guided setup
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => void startFnn()}
-                    >
-                      Start node
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger-ghost"
-                      onClick={() => void stopFnn()}
-                    >
-                      Stop
-                    </button>
+                    <StartStopNodeButton
+                      locallyRunning={fnnStatus?.kind === "running"}
+                      disableStartBecauseRemote={nodePresence === "remote"}
+                      onStart={() => void startFnn()}
+                      onStop={() => void stopFnn()}
+                    />
                   </div>
                 </div>
               </section>
@@ -1025,8 +1058,8 @@ function App() {
                     <p className="node-lock-hint-body">
                       Another Fiber node (or a second Fiber Desktop) is using the
                       same data directory, so the database lock cannot be acquired.
-                      Quit duplicate Fiber Desktop windows, click{" "}
-                      <strong>Stop</strong> here, then close any terminal{" "}
+                      Quit duplicate Fiber Desktop windows, then close any
+                      terminal{" "}
                       <code className="code-pill">fnn</code> using the same{" "}
                       <code className="code-pill">-d</code> path. On macOS you can
                       run <code className="code-pill">killall fnn</code> in
@@ -1038,20 +1071,12 @@ function App() {
                   </div>
                 ) : null}
                 <div className="btn-row">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => void startFnn()}
-                  >
-                    Start
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger-ghost"
-                    onClick={() => void stopFnn()}
-                  >
-                    Stop
-                  </button>
+                  <StartStopNodeButton
+                    locallyRunning={fnnStatus?.kind === "running"}
+                    disableStartBecauseRemote={nodePresence === "remote"}
+                    onStart={() => void startFnn()}
+                    onStop={() => void stopFnn()}
+                  />
                   <button
                     type="button"
                     className="btn btn-ghost"
