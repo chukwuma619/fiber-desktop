@@ -16,7 +16,7 @@ fn strip_ansi_escapes(s: &str) -> String {
     while let Some(c) = it.next() {
         if c == '\u{1b}' && it.peek() == Some(&'[') {
             it.next();
-            while let Some(x) = it.next() {
+            for x in it.by_ref() {
                 let code = x as u32;
                 if (0x40..=0x7e).contains(&code) {
                     break;

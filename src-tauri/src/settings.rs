@@ -92,7 +92,10 @@ fn expand_tilde(path: &str) -> String {
 /// Trim, expand `~`, resolve relative paths against stable roots, and apply defaults.
 /// Relative **data** paths are resolved under the app data directory; relative **config**
 /// paths are resolved under the data directory so `config.yml` lands beside node data.
-pub fn normalize_app_settings(app: &tauri::AppHandle, settings: &mut AppSettings) -> Result<(), String> {
+pub fn normalize_app_settings(
+    app: &tauri::AppHandle,
+    settings: &mut AppSettings,
+) -> Result<(), String> {
     settings.ckb_rpc_url = settings.ckb_rpc_url.trim().to_string();
     settings.fnn_rpc_url = settings.fnn_rpc_url.trim().to_string();
 
@@ -113,10 +116,7 @@ pub fn normalize_app_settings(app: &tauri::AppHandle, settings: &mut AppSettings
 
     let data_root = PathBuf::from(&settings.fnn_data_dir);
     if settings.fnn_config_path.is_empty() {
-        settings.fnn_config_path = data_root
-            .join("config.yml")
-            .to_string_lossy()
-            .into_owned();
+        settings.fnn_config_path = data_root.join("config.yml").to_string_lossy().into_owned();
     } else if !Path::new(&settings.fnn_config_path).is_absolute() {
         settings.fnn_config_path = data_root
             .join(&settings.fnn_config_path)
@@ -145,7 +145,10 @@ pub fn ensure_fnn_storage_exists(settings: &AppSettings) -> Result<(), String> {
         )
     })?;
     std::fs::create_dir_all(data.join("ckb")).map_err(|e| {
-        format!("could not create CKB key folder at {}: {e}", data.join("ckb").display())
+        format!(
+            "could not create CKB key folder at {}: {e}",
+            data.join("ckb").display()
+        )
     })?;
     if let Some(parent) = Path::new(&settings.fnn_config_path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| {

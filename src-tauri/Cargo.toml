@@ -27,6 +27,7 @@ ureq = { version = "2.10", features = ["json"] }
 parking_lot = "0.12"
 flate2 = "1.0"
 tar = "0.4"
+tauri-plugin-single-instance = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3.7"

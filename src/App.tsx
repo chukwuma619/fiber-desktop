@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
+import { NetworkTab } from "./components/NetworkTab";
 import {
   GUIDED_SETUP_COMPLETE,
   GUIDED_SETUP_DISMISSED,
@@ -47,6 +48,40 @@ function readGuidanceComplete(): boolean {
   return localStorage.getItem(GUIDED_SETUP_COMPLETE) === "1";
 }
 
+/** fnn exits when RocksDB cannot lock the store (second process / stray fnn). */
+function logTextIndicatesFiberStoreLock(logs: string[]): boolean {
+  const t = logs.join("\n");
+  if (!t.includes("LOCK") || !t.includes("fiber")) {
+    return false;
+  }
+  return (
+    t.includes("temporarily unavailable") ||
+    t.includes("Would block") ||
+    t.includes("already held") ||
+    t.includes("Os { code: 35") ||
+    t.includes("os error 35")
+  );
+}
+
+/** Unified UI: local child wins; else RPC `node_info` means something already serves this URL. */
+type NodePresenceKind = "stopped" | "running" | "crashed" | "remote";
+
+function deriveNodePresence(
+  fnn: FnnStatusView | null,
+  rpcReachable: boolean,
+): NodePresenceKind {
+  if (fnn?.kind === "running") {
+    return "running";
+  }
+  if (fnn?.kind === "crashed") {
+    return "crashed";
+  }
+  if (rpcReachable) {
+    return "remote";
+  }
+  return "stopped";
+}
+
 function App() {
   const [tab, setTab] = useState<TabId>("overview");
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -56,11 +91,7 @@ function App() {
   const [hasPw, setHasPw] = useState<boolean | null>(null);
   const [fnnStatus, setFnnStatus] = useState<FnnStatusView | null>(null);
   const [fnnLogs, setFnnLogs] = useState<string[]>([]);
-  const [rpcBusy, setRpcBusy] = useState<string | null>(null);
-  const [rpcOut, setRpcOut] = useState<string>("");
-  const [channelFunding, setChannelFunding] = useState("0xb9e459300");
-  const [invoiceAmount, setInvoiceAmount] = useState("0x5f5e100");
-  const [paymentInvoice, setPaymentInvoice] = useState("");
+  const [rpcReachable, setRpcReachable] = useState(false);
   const [pinnedInfo, setPinnedInfo] = useState<PinnedFnnInfo | null>(null);
   const [toolsBusy, setToolsBusy] = useState<string | null>(null);
   const [fnnBinaryStatus, setFnnBinaryStatus] =
@@ -103,14 +134,25 @@ function App() {
     }
   }, []);
 
-  const pollFnn = useCallback(async () => {
+  const refreshNodeRuntime = useCallback(async () => {
     try {
       setFnnStatus(await invoke<FnnStatusView>("fnn_status"));
       setFnnLogs(await invoke<string[]>("fnn_logs", { maxLines: 200 }));
     } catch {
       setFnnStatus(null);
     }
-  }, []);
+    const url = settings?.fnnRpcUrl?.trim();
+    if (!url) {
+      setRpcReachable(false);
+      return;
+    }
+    try {
+      await rpc("node_info", []);
+      setRpcReachable(true);
+    } catch {
+      setRpcReachable(false);
+    }
+  }, [settings?.fnnRpcUrl]);
 
   const refreshPinned = useCallback(async () => {
     try {
@@ -156,10 +198,10 @@ function App() {
   }, [refreshCkbKeyStatus]);
 
   useEffect(() => {
-    const t = window.setInterval(() => void pollFnn(), 2000);
-    void pollFnn();
+    const t = window.setInterval(() => void refreshNodeRuntime(), 1500);
+    void refreshNodeRuntime();
     return () => window.clearInterval(t);
-  }, [pollFnn]);
+  }, [refreshNodeRuntime]);
 
   useEffect(() => {
     if (guidedAutoOpened.current) return;
@@ -247,7 +289,7 @@ function App() {
     setLoadError(null);
     try {
       await invoke("fnn_start");
-      await pollFnn();
+      await refreshNodeRuntime();
       setTab("node");
       if (opts?.guidedFinish) {
         markGuidanceComplete();
@@ -261,7 +303,7 @@ function App() {
   async function stopFnn() {
     try {
       await invoke("fnn_stop");
-      await pollFnn();
+      await refreshNodeRuntime();
     } catch (e) {
       setLoadError(String(e));
     }
@@ -344,23 +386,6 @@ function App() {
   const netId: NetworkId =
     settings?.network === "mainnet" ? "mainnet" : "testnet";
 
-  async function runRpc(
-    label: string,
-    method: string,
-    params: unknown,
-  ) {
-    setRpcBusy(label);
-    setRpcOut("");
-    try {
-      const result = await rpc(method, params);
-      setRpcOut(JSON.stringify(result, null, 2));
-    } catch (e) {
-      setRpcOut(String(e));
-    } finally {
-      setRpcBusy(null);
-    }
-  }
-
   const nodeKeys = PUBLIC_NODE_PUBKEYS[netId];
 
   const programReady = Boolean(fnnBinaryStatus?.executableReady);
@@ -368,12 +393,29 @@ function App() {
   const canContinuePasswordStep =
     hasPw === true || guidedPasswordSavedOk;
 
+  const nodePresence = deriveNodePresence(fnnStatus, rpcReachable);
+
   const statusLabel =
-    fnnStatus?.kind === "running"
+    nodePresence === "running"
       ? "Running"
-      : fnnStatus?.kind === "crashed"
-        ? "Crashed"
-        : "Stopped";
+      : nodePresence === "remote"
+        ? "Reachable"
+        : nodePresence === "crashed"
+          ? "Crashed"
+          : "Stopped";
+
+  const logPanelLines = useMemo(() => {
+    if (nodePresence === "remote" && fnnStatus?.kind !== "running") {
+      return [
+        "[fiber-desktop] A node answers at your configured Node API URL.",
+        "[fiber-desktop] Lines below are only from fnn started with Start in this app (not another terminal or window).",
+        "[fiber-desktop] Open the Network tab to use RPC, or stop the other process and Start here for live logs.",
+        "—",
+        ...fnnLogs,
+      ];
+    }
+    return fnnLogs;
+  }, [nodePresence, fnnStatus?.kind, fnnLogs]);
 
   return (
     <div className="shell">
@@ -443,22 +485,22 @@ function App() {
               </a>
             </nav>
           </div>
-          {fnnStatus && (
-            <div
-              className={`status-chip status-chip-${fnnStatus.kind}`}
-              title={
-                fnnStatus.kind === "crashed" && fnnStatus.exitCode != null
-                  ? `Exit code ${fnnStatus.exitCode}`
+          <div
+            className={`status-chip status-chip-${nodePresence}`}
+            title={
+              nodePresence === "crashed" && fnnStatus?.exitCode != null
+                ? `Exit code ${fnnStatus.exitCode}`
+                : nodePresence === "remote"
+                  ? "node_info succeeded at your Node API URL (this app may not own the process)"
                   : undefined
-              }
-            >
-              <span className="status-dot" aria-hidden />
-              <span className="status-text">{statusLabel}</span>
-              {fnnStatus.pid != null && (
-                <span className="status-meta">PID {fnnStatus.pid}</span>
-              )}
-            </div>
-          )}
+            }
+          >
+            <span className="status-dot" aria-hidden />
+            <span className="status-text">{statusLabel}</span>
+            {nodePresence === "running" && fnnStatus?.pid != null && (
+              <span className="status-meta">PID {fnnStatus.pid}</span>
+            )}
+          </div>
         </header>
 
         {loadError && !guidedOpen && (
@@ -515,18 +557,18 @@ function App() {
 
               <section className="panel panel-hero">
                 <h2 className="sr-only">Node status</h2>
-                <div
-                  className={`hero-status hero-status-${fnnStatus?.kind ?? "stopped"}`}
-                >
+                <div className={`hero-status hero-status-${nodePresence}`}>
                   <div className="hero-status-text">
                     <span className="hero-label">Your node</span>
                     <strong className="hero-value">{statusLabel}</strong>
                     <span className="hero-sub">
-                      {fnnStatus?.kind === "running"
+                      {nodePresence === "running"
                         ? "It should answer at the address you set under Setup → Network."
-                        : fnnStatus?.kind === "crashed"
-                          ? "Open the Node tab and read the logs for details."
-                          : "Use Guided setup above, then start your node here."}
+                        : nodePresence === "remote"
+                          ? "Something is already serving your Node API URL—try the Network tab. Stop the other fnn if you want this window to own logs and Start."
+                          : nodePresence === "crashed"
+                            ? "Open the Node tab and read the logs for details."
+                            : "Use Guided setup above, then start your node here."}
                     </span>
                   </div>
                   <div className="hero-actions">
@@ -975,6 +1017,26 @@ function App() {
                   <code className="code-pill">ckb-cli</code>. Recent output appears
                   below.
                 </p>
+                {logTextIndicatesFiberStoreLock(fnnLogs) ? (
+                  <div className="node-lock-hint" role="note">
+                    <strong className="node-lock-hint-title">
+                      Data folder is already in use
+                    </strong>
+                    <p className="node-lock-hint-body">
+                      Another Fiber node (or a second Fiber Desktop) is using the
+                      same data directory, so the database lock cannot be acquired.
+                      Quit duplicate Fiber Desktop windows, click{" "}
+                      <strong>Stop</strong> here, then close any terminal{" "}
+                      <code className="code-pill">fnn</code> using the same{" "}
+                      <code className="code-pill">-d</code> path. On macOS you can
+                      run <code className="code-pill">killall fnn</code> in
+                      Terminal only if you are sure no other node you need is
+                      running. This app allows only one instance at a time; a
+                      second launch focuses the existing window instead of
+                      starting another copy.
+                    </p>
+                  </div>
+                ) : null}
                 <div className="btn-row">
                   <button
                     type="button"
@@ -993,7 +1055,7 @@ function App() {
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    onClick={() => void pollFnn()}
+                    onClick={() => void refreshNodeRuntime()}
                   >
                     Refresh
                   </button>
@@ -1011,7 +1073,7 @@ function App() {
                 <textarea
                   className="log-view"
                   readOnly
-                  value={fnnLogs.join("\n")}
+                  value={logPanelLines.join("\n")}
                   spellCheck={false}
                   aria-label="Node log output"
                   placeholder="Start the node to see live messages here…"
@@ -1021,199 +1083,11 @@ function App() {
           )}
 
           {tab === "network" && (
-            <div className="panel-stack network-layout">
-              <section className="panel">
-                <h2 className="panel-title">Talk to your node</h2>
-                <p className="panel-lead">
-                  These buttons send requests to your node at the{" "}
-                  <strong>Node API</strong> address from Setup. Results appear on
-                  the right. Public relay keys match the{" "}
-                  <a
-                    className="inline-link"
-                    href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    public nodes
-                  </a>{" "}
-                  list for Fiber v0.8+.
-                </p>
-
-                <h3 className="subhead">Look up status</h3>
-                <div className="chip-actions">
-                  <button
-                    type="button"
-                    className="btn btn-chip"
-                    disabled={!!rpcBusy}
-                    onClick={() => void runRpc("info", "node_info", [])}
-                  >
-                    {rpcBusy === "info" ? "…" : "Node info"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-chip"
-                    disabled={!!rpcBusy}
-                    onClick={() =>
-                      void runRpc("channels", "list_channels", [{}])
-                    }
-                  >
-                    {rpcBusy === "channels" ? "…" : "My channels"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-chip"
-                    disabled={!!rpcBusy}
-                    onClick={() =>
-                      void runRpc("graph", "graph_nodes", { limit: 50 })
-                    }
-                  >
-                    {rpcBusy === "graph" ? "…" : "Network map"}
-                  </button>
-                </div>
-
-                <h3 className="subhead">Public relays ({netId})</h3>
-                <div className="chip-actions">
-                  <button
-                    type="button"
-                    className="btn btn-chip"
-                    disabled={!!rpcBusy}
-                    title={nodeKeys.node1}
-                    onClick={() =>
-                      void runRpc("connect1", "connect_peer", [
-                        { pubkey: nodeKeys.node1 },
-                      ])
-                    }
-                  >
-                    {rpcBusy === "connect1" ? "…" : "Connect relay 1"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-chip"
-                    disabled={!!rpcBusy}
-                    title={nodeKeys.node2}
-                    onClick={() =>
-                      void runRpc("connect2", "connect_peer", [
-                        { pubkey: nodeKeys.node2 },
-                      ])
-                    }
-                  >
-                    {rpcBusy === "connect2" ? "…" : "Connect relay 2"}
-                  </button>
-                </div>
-
-                <h3 className="subhead">Channels & payments</h3>
-                <div className="rpc-form-blocks">
-                  <div className="rpc-form-block">
-                    <label className="field">
-                      <span className="field-label">
-                        Open channel — amount (advanced: hex)
-                      </span>
-                      <div className="inline-field">
-                        <input
-                          className="input input-mono"
-                          value={channelFunding}
-                          onChange={(e) => setChannelFunding(e.target.value)}
-                          spellCheck={false}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={!!rpcBusy}
-                          onClick={() => {
-                            const amt = channelFunding.trim();
-                            void runRpc("open", "open_channel", [
-                              {
-                                pubkey: nodeKeys.node1,
-                                funding_amount: amt,
-                                public: true,
-                              },
-                            ]);
-                          }}
-                        >
-                          Open channel
-                        </button>
-                      </div>
-                    </label>
-                    <p className="field-hint">
-                      Example <code>0xb9e459300</code> ≈ 499 CKB (see public
-                      nodes doc).
-                    </p>
-                  </div>
-                  <div className="rpc-form-block">
-                    <label className="field">
-                      <span className="field-label">New invoice — amount (hex)</span>
-                      <div className="inline-field">
-                        <input
-                          className="input input-mono"
-                          value={invoiceAmount}
-                          onChange={(e) => setInvoiceAmount(e.target.value)}
-                          spellCheck={false}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={!!rpcBusy}
-                          onClick={() =>
-                            void runRpc("invoice", "new_invoice", [
-                              {
-                                amount: invoiceAmount.trim(),
-                                currency: netId === "mainnet" ? "Fibb" : "Fibt",
-                                description: "fiber-desktop",
-                              },
-                            ])
-                          }
-                        >
-                          Create invoice
-                        </button>
-                      </div>
-                    </label>
-                  </div>
-                  <div className="rpc-form-block">
-                    <label className="field">
-                      <span className="field-label">Send payment — invoice</span>
-                      <div className="inline-field">
-                        <input
-                          className="input input-mono"
-                          value={paymentInvoice}
-                          onChange={(e) => setPaymentInvoice(e.target.value)}
-                          placeholder="Paste invoice string"
-                          spellCheck={false}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={!!rpcBusy || !paymentInvoice.trim()}
-                          onClick={() =>
-                            void runRpc("pay", "send_payment", [
-                              { invoice: paymentInvoice.trim() },
-                            ])
-                          }
-                        >
-                          Send payment
-                        </button>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-              </section>
-
-              <section className="panel panel-sticky-response">
-                <div className="panel-head">
-                  <h2 className="panel-title">Result</h2>
-                  <span className="panel-meta">
-                    {rpcBusy ? "Working…" : "Ready"}
-                  </span>
-                </div>
-                <textarea
-                  className="response-view"
-                  readOnly
-                  value={rpcOut}
-                  spellCheck={false}
-                  placeholder="The last reply from your node will show here."
-                  aria-label="Last result from your node"
-                />
-              </section>
-            </div>
+            <NetworkTab
+              netId={netId}
+              nodeKeys={nodeKeys}
+              callFiberRpc={rpc}
+            />
           )}
         </main>
       </div>
