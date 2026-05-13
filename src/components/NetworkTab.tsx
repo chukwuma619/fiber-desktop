@@ -127,20 +127,6 @@ export function NetworkTab({
     <div className="panel-stack network-layout">
       <section className="panel network-actions-panel">
         <h2 className="panel-title">Actions</h2>
-        <p className="panel-lead">
-          Calls go to the <strong>Node API</strong> URL from Setup. Use{" "}
-          <strong>Refresh</strong> after starting the node or changing settings.
-          Relay keys match the{" "}
-          <a
-            className="inline-link"
-            href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
-            target="_blank"
-            rel="noreferrer"
-          >
-            public nodes
-          </a>{" "}
-          list (Fiber v0.8+).
-        </p>
 
         {rpcError ? (
           <div className="network-inline-error" role="alert">
@@ -180,6 +166,18 @@ export function NetworkTab({
             {rpcBusy === "Network map" ? "…" : "Load network graph"}
           </button>
         </div>
+        <p className="field-hint network-actions-hint">
+          Uses Setup → Node API; refresh after changes. Relays:{" "}
+          <a
+            className="inline-link"
+            href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            public nodes
+          </a>
+          .
+        </p>
 
         <h3 className="subhead">Public relays ({netId})</h3>
         <div className="chip-actions">
@@ -215,9 +213,7 @@ export function NetworkTab({
         <div className="rpc-form-blocks">
           <div className="rpc-form-block">
             <label className="field">
-              <span className="field-label">
-                Open channel — funding amount (hex u128, shannons)
-              </span>
+              <span className="field-label">Open channel — funding amount</span>
               <div className="amount-preset-row" aria-label="Amount presets">
                 <span className="amount-preset-label">Presets:</span>
                 <button
@@ -241,6 +237,7 @@ export function NetworkTab({
                   value={channelFunding}
                   onChange={(e) => setChannelFunding(e.target.value)}
                   spellCheck={false}
+                  title="Hex u128, shannons (same style as ckb-cli)."
                   aria-describedby="network-open-channel-hint"
                 />
                 <button
@@ -263,9 +260,7 @@ export function NetworkTab({
               </div>
             </label>
             <p className="field-hint" id="network-open-channel-hint">
-              Connect to a relay first. Amount is locked while the channel is open;
-              start small on testnet. Values are hex (e.g. same style as{" "}
-              <code className="code-pill">ckb-cli</code>).
+              Connect to a relay first; start with a small amount on testnet.
             </p>
           </div>
           <div className="rpc-form-block">
@@ -353,8 +348,7 @@ export function NetworkTab({
               </div>
             </label>
             <p className="field-hint">
-              Only pay invoices you trust. There is no undo once the node accepts
-              the route.
+              Only pay invoices you trust—there is no undo once routed.
             </p>
           </div>
         </div>

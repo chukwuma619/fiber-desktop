@@ -445,6 +445,40 @@ function App() {
           ? "Crashed"
           : "Stopped";
 
+  const heroSubOneLine =
+    nodePresence === "running"
+      ? "Answering at the Node API URL from Setup."
+      : nodePresence === "remote"
+        ? "Another process may be using this URL—open Network to use RPC."
+        : nodePresence === "crashed"
+          ? "See the Node tab for details in the log."
+          : "Finish setup, then start your node here.";
+
+  const heroSubFullTitle =
+    nodePresence === "running"
+      ? "It should answer at the address you set under Setup → Network."
+      : nodePresence === "remote"
+        ? "Something is already serving your Node API URL—try the Network tab. Use Stop node when this app owns the process, or stop the other fnn first if you want to start here."
+        : nodePresence === "crashed"
+          ? "Open the Node tab and read the logs for details."
+          : "Use Guided setup on Overview if you are new, then start your node here.";
+
+  const bundledVersionLabel =
+    pinnedInfo?.tag ?? fnnBinaryStatus?.pinnedTag ?? "—";
+
+  const usingBundledLabel =
+    fnnBinaryStatus == null
+      ? "…"
+      : fnnBinaryStatus.isBundled
+        ? "App-included build"
+        : "Custom / downloaded";
+
+  const keyPathDisplay = useMemo(() => {
+    if (!settings?.fnnDataDir?.trim()) return "{data folder}/ckb/key";
+    const base = settings.fnnDataDir.replace(/[/\\]+$/, "");
+    return `${base}/ckb/key`;
+  }, [settings?.fnnDataDir]);
+
   const logPanelLines = useMemo(() => {
     if (nodePresence === "remote" && fnnStatus?.kind !== "running") {
       return [
@@ -563,12 +597,9 @@ function App() {
               {!guidanceComplete && (
                 <section className="panel panel-get-started">
                   <h2 className="panel-title">First launch</h2>
-                  <p className="panel-lead">
-                    This node uses a <strong>CKB private key file</strong> as its
-                    on-chain identity—the same role as a wallet for Fiber. Open{" "}
-                    <strong>Guided setup</strong> and we will walk you through
-                    network, config, placing your key, saving your unlock password,
-                    and starting the node in order.
+                  <p className="panel-lead panel-lead-tight">
+                    Your node needs a CKB key file and a saved password—use{" "}
+                    <strong>Guided setup</strong> to walk through it in order.
                   </p>
                   <div className="get-started-actions">
                     <button
@@ -598,104 +629,141 @@ function App() {
 
               <section className="panel panel-hero">
                 <h2 className="sr-only">Node status</h2>
-                <div className={`hero-status hero-status-${nodePresence}`}>
-                  <div className="hero-status-text">
-                    <span className="hero-label">Your node</span>
-                    <strong className="hero-value">{statusLabel}</strong>
-                    <span className="hero-sub">
-                      {nodePresence === "running"
-                        ? "It should answer at the address you set under Setup → Network."
-                        : nodePresence === "remote"
-                          ? "Something is already serving your Node API URL—try the Network tab. Use Stop node when this app owns the process, or stop the other fnn first if you want to start here."
-                          : nodePresence === "crashed"
-                            ? "Open the Node tab and read the logs for details."
-                            : "Use Guided setup above, then start your node here."}
-                    </span>
+                <div className="overview-hero-inner">
+                  <div
+                    className="stat-pill-row"
+                    role="group"
+                    aria-label="At a glance"
+                  >
+                    <div className="stat-pill">
+                      <span className="stat-pill-label">Node</span>
+                      <span className="stat-pill-value">{statusLabel}</span>
+                    </div>
+                    <div className="stat-pill">
+                      <span className="stat-pill-label">Key file</span>
+                      <span className="stat-pill-value">
+                        {ckbKeyStatus == null
+                          ? "…"
+                          : ckbKeyStatus.ready
+                            ? "Ready"
+                            : "Missing"}
+                      </span>
+                    </div>
+                    <div className="stat-pill">
+                      <span className="stat-pill-label">Network</span>
+                      <span className="stat-pill-value">
+                        {!settings
+                          ? "…"
+                          : settings.network === "mainnet"
+                            ? "Mainnet"
+                            : "Testnet"}
+                      </span>
+                    </div>
+                    <div className="stat-pill">
+                      <span className="stat-pill-label">fnn</span>
+                      <span
+                        className="stat-pill-value stat-pill-value-mono"
+                        title={
+                          pinnedInfo?.assetFileName
+                            ? pinnedInfo.assetFileName
+                            : undefined
+                        }
+                      >
+                        {bundledVersionLabel}
+                      </span>
+                    </div>
                   </div>
-                  <div className="hero-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => openGuidedReset()}
-                    >
-                      Guided setup
-                    </button>
-                    <StartStopNodeButton
-                      locallyRunning={fnnStatus?.kind === "running"}
-                      disableStartBecauseRemote={nodePresence === "remote"}
-                      onStart={() => void startFnn()}
-                      onStop={() => void stopFnn()}
-                    />
+
+                  <div className={`hero-status hero-status-${nodePresence}`}>
+                    <div className="hero-status-text">
+                      <span className="hero-label">Your node</span>
+                      <strong className="hero-value">{statusLabel}</strong>
+                      <span className="hero-sub" title={heroSubFullTitle}>
+                        {heroSubOneLine}
+                      </span>
+                    </div>
+                    <div className="hero-actions">
+                      <StartStopNodeButton
+                        locallyRunning={fnnStatus?.kind === "running"}
+                        disableStartBecauseRemote={nodePresence === "remote"}
+                        onStart={() => void startFnn()}
+                        onStop={() => void stopFnn()}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="overview-hero-footer">
+                    <div className="overview-info-row">
+                      <span className="overview-info-k">Bundled fnn</span>
+                      <span className="overview-info-v text-accent">
+                        {bundledVersionLabel}
+                      </span>
+                    </div>
+                    <div className="overview-info-row">
+                      <span className="overview-info-k">In use</span>
+                      <span className="overview-info-v">{usingBundledLabel}</span>
+                    </div>
+                    <div className="overview-hero-footer-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setTab("setup")}
+                      >
+                        Node settings
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openGuidedReset()}
+                      >
+                        Setup wizard
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
 
               <section className="panel">
-                <h2 className="panel-title">Quick start</h2>
-                <p className="panel-lead">
-                  Prefer <strong>Guided setup</strong> at the top of this page.
-                  If you already know Fiber, you can use the tabs manually:
-                </p>
-                <ol className="steps-list">
-                  <li>
-                    <button
-                      type="button"
-                      className="steps-link"
-                      onClick={() => setTab("setup")}
-                    >
-                      Setup
-                    </button>
-                    — pick testnet or mainnet, point to your config and data
-                    folder, use the included node or download an update, then
-                    save your keychain password.
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className="steps-link"
-                      onClick={() => setTab("node")}
-                    >
-                      Node
-                    </button>
-                    — start your node and watch live output.
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className="steps-link"
-                      onClick={() => setTab("network")}
-                    >
-                      Network
-                    </button>
-                    — connect to public relays and try queries or payments.
-                  </li>
-                </ol>
-              </section>
-
-              <section className="panel panel-muted">
-                <h2 className="panel-title">Built-in Fiber node</h2>
-                <p className="panel-lead">
-                  The app ships with a tested <strong>fnn</strong> (Fiber node)
-                  for your computer, version{" "}
-                  <strong className="text-accent">
-                    {pinnedInfo?.tag ?? fnnBinaryStatus?.pinnedTag ?? "…"}
-                  </strong>
-                  {pinnedInfo && (
-                    <>
-                      {" "}
-                      <code className="code-pill">{pinnedInfo.assetFileName}</code>
-                    </>
-                  )}
-                  . Most people can leave this as-is. If you need another build,
-                  use <strong>Download</strong> or a custom path under Setup.
-                </p>
-                <div className="btn-row">
+                <h2 className="panel-title">Next steps</h2>
+                <div className="next-step-cards" role="list">
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="next-step-card"
                     onClick={() => setTab("setup")}
                   >
-                    Open setup
+                    <span className="next-step-card-icon" aria-hidden>
+                      ⚙
+                    </span>
+                    <span className="next-step-card-title">Setup</span>
+                    <span className="next-step-card-desc">
+                      Network, paths, and security
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="next-step-card"
+                    onClick={() => setTab("node")}
+                  >
+                    <span className="next-step-card-icon" aria-hidden>
+                      ⬡
+                    </span>
+                    <span className="next-step-card-title">Node</span>
+                    <span className="next-step-card-desc">
+                      Start, stop, and logs
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="next-step-card"
+                    onClick={() => setTab("network")}
+                  >
+                    <span className="next-step-card-icon" aria-hidden>
+                      ⧉
+                    </span>
+                    <span className="next-step-card-title">Network</span>
+                    <span className="next-step-card-desc">
+                      Relays, channels, payments
+                    </span>
                   </button>
                 </div>
               </section>
@@ -708,33 +776,28 @@ function App() {
                 <p className="loading-text">Loading settings…</p>
               ) : (
                 <>
-                  <section className="panel">
-                    <h2 className="panel-title">Easy path</h2>
-                    <p className="panel-lead setup-callout-top">
-                      Open <strong>Guided setup</strong> from the Overview tab to
-                      walk through network, config file, password, and starting
-                      the node in order.
-                    </p>
-                    <div className="btn-row">
+                  <div className="tip-bar" role="note">
+                    <span className="tip-bar-text">
+                      New here? Use <strong>Guided setup</strong> on the{" "}
                       <button
                         type="button"
-                        className="btn btn-primary"
-                        onClick={() => openGuidedReset()}
+                        className="inline-link inline-link-button"
+                        onClick={() => setTab("overview")}
                       >
-                        Open guided setup
-                      </button>
-                    </div>
-                  </section>
+                        Overview
+                      </button>{" "}
+                      tab first.
+                    </span>
+                  </div>
 
                   <details className="setup-advanced">
                     <summary>All settings (folders, URLs, downloads)</summary>
                     <div className="setup-advanced-inner">
                   <section className="panel">
                     <h2 className="panel-title">Network & endpoints</h2>
-                    <p className="panel-lead">
-                      Choose your network and where this app reaches CKB and your
-                      local node. These are saved in the app (separate from your
-                      keychain password).
+                    <p className="panel-lead panel-lead-tight">
+                      Network choice, CKB RPC, and local Node API URL (saved
+                      separately from your keychain password).
                     </p>
                     <div className="field-grid">
                       <label className="field">
@@ -788,10 +851,9 @@ function App() {
 
                   <section className="panel">
                     <h2 className="panel-title">Folders & program</h2>
-                    <p className="panel-lead">
-                      Point to where your node stores data, your{" "}
-                      <code className="code-pill">config.yml</code>, and which
-                      program runs. Defaults work for many installs.
+                    <p className="panel-lead panel-lead-tight">
+                      Data directory, <code className="code-pill">config.yml</code>
+                      , and optional custom fnn binary path.
                     </p>
                     <div className="field-grid">
                       <label className="field field-span-2">
@@ -856,12 +918,6 @@ function App() {
 
                   <section className="panel">
                     <h2 className="panel-title">Included node & updates</h2>
-                    <p className="panel-lead">
-                      Prefer <strong>Use app-included node</strong> unless you
-                      know you need another build. <strong>Download</strong>{" "}
-                      saves the same official release into app data and switches
-                      to it—handy if the bundled file is missing.
-                    </p>
 
                     {fnnBinaryStatus && (
                       <div
@@ -976,9 +1032,9 @@ function App() {
 
                   <section className="panel">
                     <h2 className="panel-title">Security</h2>
-                    <p className="panel-lead">
-                      Your node needs a password to unlock keys. It is stored only
-                      in the system keychain (never in plain settings files).
+                    <p className="panel-lead panel-lead-tight">
+                      Password to unlock node keys—stored in the system keychain
+                      only.
                     </p>
                     <div className="field-grid">
                       <label className="field field-span-2">
@@ -1022,22 +1078,33 @@ function App() {
             <div className="panel-stack">
               <section className="panel">
                 <h2 className="panel-title">Run your node</h2>
-                <p className="panel-lead">
-                  Uses the folders and config you set in Setup. Put your CKB private
-                  key (one line of hex) at{" "}
-                  <code className="code-pill">{"{data folder}/ckb/key"}</code>
-                  —that file is your <strong>wallet key</strong> for this node.{" "}
-                  <button
-                    type="button"
-                    className="inline-link inline-link-button"
-                    onClick={() => void openCkbKeyFolder()}
-                  >
-                    Open the key folder
-                  </button>
-                  {ckbKeyStatus?.ready ? (
-                    <span className="key-ready-badge"> · Key file detected</span>
-                  ) : null}{" "}
-                  See{" "}
+                <p className="panel-lead panel-lead-tight">
+                  Start and monitor the local <strong>fnn</strong> process using
+                  paths from Setup.
+                </p>
+                <div className="key-file-row">
+                  <span className="key-file-row-label">CKB identity key</span>
+                  <div className="key-file-row-inner">
+                    <code
+                      className="code-pill key-file-path"
+                      title="One line of hex in this file acts as the node wallet key."
+                    >
+                      {keyPathDisplay}
+                    </code>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => void openCkbKeyFolder()}
+                    >
+                      Open folder
+                    </button>
+                    {ckbKeyStatus?.ready ? (
+                      <span className="key-ready-badge">Key detected</span>
+                    ) : null}
+                  </div>
+                </div>
+                <p className="field-hint key-file-docs-hint">
+                  Exporting a key and testnet walkthrough:{" "}
                   <a
                     className="inline-link"
                     href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
@@ -1045,10 +1112,8 @@ function App() {
                     rel="noreferrer"
                   >
                     Fiber testnet nodes
-                  </a>{" "}
-                  for exporting a key with{" "}
-                  <code className="code-pill">ckb-cli</code>. Recent output appears
-                  below.
+                  </a>
+                  .
                 </p>
                 {logTextIndicatesFiberStoreLock(fnnLogs) ? (
                   <div className="node-lock-hint" role="note">
@@ -1056,17 +1121,12 @@ function App() {
                       Data folder is already in use
                     </strong>
                     <p className="node-lock-hint-body">
-                      Another Fiber node (or a second Fiber Desktop) is using the
-                      same data directory, so the database lock cannot be acquired.
-                      Quit duplicate Fiber Desktop windows, then close any
-                      terminal{" "}
-                      <code className="code-pill">fnn</code> using the same{" "}
-                      <code className="code-pill">-d</code> path. On macOS you can
-                      run <code className="code-pill">killall fnn</code> in
-                      Terminal only if you are sure no other node you need is
-                      running. This app allows only one instance at a time; a
-                      second launch focuses the existing window instead of
-                      starting another copy.
+                      Another <code className="code-pill">fnn</code> or Fiber
+                      Desktop window is using the same data directory, so the
+                      database cannot lock. Quit duplicates and any terminal{" "}
+                      <code className="code-pill">fnn</code> with the same{" "}
+                      <code className="code-pill">-d</code> path before starting
+                      again.
                     </p>
                   </div>
                 ) : null}
