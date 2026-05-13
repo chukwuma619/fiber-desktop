@@ -54,18 +54,21 @@ impl AppSettings {
     }
 }
 
-pub fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(dir.join("settings.json"))
+/// All app-writable state lives under `~/.fiber_desktop` (macOS/Linux) or `%USERPROFILE%\.fiber_desktop` (Windows).
+pub fn fiber_desktop_root() -> Result<PathBuf, String> {
+    let home = home_dir().ok_or_else(|| "could not resolve home directory".to_string())?;
+    Ok(home.join(".fiber_desktop"))
 }
 
-fn default_fnn_data_dir(app: &tauri::AppHandle) -> Result<String, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("fnn-data");
-    Ok(dir.to_string_lossy().into_owned())
+pub fn settings_path() -> Result<PathBuf, String> {
+    Ok(fiber_desktop_root()?.join("settings.json"))
+}
+
+fn default_fnn_data_dir() -> Result<String, String> {
+    Ok(fiber_desktop_root()?
+        .join("fnn-data")
+        .to_string_lossy()
+        .into_owned())
 }
 
 fn home_dir() -> Option<PathBuf> {
@@ -89,11 +92,75 @@ fn expand_tilde(path: &str) -> String {
     p.to_string()
 }
 
+fn dir_missing_or_empty(dir: &Path) -> bool {
+    if !dir.exists() {
+        return true;
+    }
+    if !dir.is_dir() {
+        return false;
+    }
+    std::fs::read_dir(dir)
+        .map(|mut it| it.next().is_none())
+        .unwrap_or(true)
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    if !src.is_dir() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+        } else if file_type.is_file() {
+            std::fs::copy(&from, &to).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// If the new layout has no settings yet but Tauri’s legacy `app_data_dir` does, copy `settings.json`
+/// and optionally `fnn-data` / `tools` into `~/.fiber_desktop` once.
+fn migrate_legacy_storage_from_app_data(app: &tauri::AppHandle) -> Result<(), String> {
+    let new_root = fiber_desktop_root()?;
+    let new_settings = new_root.join("settings.json");
+    if new_settings.exists() {
+        return Ok(());
+    }
+
+    let legacy_root = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let legacy_settings = legacy_root.join("settings.json");
+    if !legacy_settings.is_file() {
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(&new_root).map_err(|e| e.to_string())?;
+    std::fs::copy(&legacy_settings, &new_settings).map_err(|e| e.to_string())?;
+
+    let legacy_data = legacy_root.join("fnn-data");
+    let new_data = new_root.join("fnn-data");
+    if legacy_data.is_dir() && dir_missing_or_empty(&new_data) {
+        copy_dir_recursive(&legacy_data, &new_data)?;
+    }
+
+    let legacy_tools = legacy_root.join("tools");
+    let new_tools = new_root.join("tools");
+    if legacy_tools.is_dir() && dir_missing_or_empty(&new_tools) {
+        copy_dir_recursive(&legacy_tools, &new_tools)?;
+    }
+
+    Ok(())
+}
+
 /// Trim, expand `~`, resolve relative paths against stable roots, and apply defaults.
-/// Relative **data** paths are resolved under the app data directory; relative **config**
+/// Relative **data** paths are resolved under `~/.fiber_desktop`; relative **config**
 /// paths are resolved under the data directory so `config.yml` lands beside node data.
 pub fn normalize_app_settings(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     settings: &mut AppSettings,
 ) -> Result<(), String> {
     settings.ckb_rpc_url = settings.ckb_rpc_url.trim().to_string();
@@ -103,12 +170,12 @@ pub fn normalize_app_settings(
     settings.fnn_config_path = expand_tilde(&settings.fnn_config_path);
     settings.fnn_binary_path = expand_tilde(&settings.fnn_binary_path);
 
-    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let root = fiber_desktop_root()?;
 
     if settings.fnn_data_dir.is_empty() {
-        settings.fnn_data_dir = default_fnn_data_dir(app)?;
+        settings.fnn_data_dir = default_fnn_data_dir()?;
     } else if !Path::new(&settings.fnn_data_dir).is_absolute() {
-        settings.fnn_data_dir = app_data
+        settings.fnn_data_dir = root
             .join(&settings.fnn_data_dir)
             .to_string_lossy()
             .into_owned();
@@ -125,7 +192,7 @@ pub fn normalize_app_settings(
     }
 
     if !settings.fnn_binary_path.is_empty() && !Path::new(&settings.fnn_binary_path).is_absolute() {
-        settings.fnn_binary_path = app_data
+        settings.fnn_binary_path = root
             .join(&settings.fnn_binary_path)
             .to_string_lossy()
             .into_owned();
@@ -162,7 +229,9 @@ pub fn ensure_fnn_storage_exists(settings: &AppSettings) -> Result<(), String> {
 }
 
 pub fn load_or_default(app: &tauri::AppHandle) -> Result<AppSettings, String> {
-    let path = settings_path(app)?;
+    migrate_legacy_storage_from_app_data(app)?;
+
+    let path = settings_path()?;
     let mut settings = if path.exists() {
         let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
         serde_json::from_str(&raw).map_err(|e| e.to_string())?
@@ -180,10 +249,10 @@ pub fn load_or_default(app: &tauri::AppHandle) -> Result<AppSettings, String> {
     Ok(settings)
 }
 
-pub fn save(app: &tauri::AppHandle, settings: &AppSettings) -> Result<(), String> {
+pub fn save(_app: &tauri::AppHandle, settings: &AppSettings) -> Result<(), String> {
     std::fs::create_dir_all(Path::new(&settings.fnn_data_dir)).map_err(|e| e.to_string())?;
 
-    let path = settings_path(app)?;
+    let path = settings_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }

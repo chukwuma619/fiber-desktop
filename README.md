@@ -52,6 +52,7 @@ That is all you need for local development.
 Fiber’s node expects a **CKB secp256k1 private key** on disk (not the same as the app keychain password):
 
 - Path: **`{your FNN data directory}/ckb/key`** (one line of hex; often from `ckb-cli account export`).
+- Default data directory (unless you change it in Setup): **`~/.fiber_desktop/fnn-data`** on macOS and Linux, or **`%USERPROFILE%\.fiber_desktop\fnn-data`** on Windows. App settings are stored in **`~/.fiber_desktop/settings.json`** (same Windows pattern under `.fiber_desktop`).
 - The password you save in Fiber Desktop encrypts this file when `fnn` starts; it does **not** create the key.
 
 See the official guide: [Fiber testnet nodes / key setup](https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md).
