@@ -581,30 +581,7 @@ function App() {
                 {TABS.find((x) => x.id === tab)?.hint}
               </p>
             </div>
-            <nav
-              className="top-bar-links"
-              aria-label="Fiber Network on the web"
-            >
-              <a
-                className="top-bar-link"
-                href="https://docs.fiber.world/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Documentation
-              </a>
-              <span className="top-bar-link-sep" aria-hidden>
-                ·
-              </span>
-              <a
-                className="top-bar-link"
-                href="https://www.fiber.world/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                fiber.world
-              </a>
-            </nav>
+            
           </div>
           <div
             className={`status-chip status-chip-${nodePresence}`}
