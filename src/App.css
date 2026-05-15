@@ -1896,3 +1896,244 @@ select.input {
     backdrop-filter: blur(4px);
   }
 }
+
+/* ——— Payments tab ——— */
+
+.pmt-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Status bar */
+.pmt-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1.1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+}
+
+.pmt-status-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.pmt-status-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.pmt-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pmt-stat-k {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.pmt-stat-v {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pmt-stat-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Step cards */
+.pmt-step {
+  margin-bottom: 0.5rem;
+}
+
+.pmt-step-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.pmt-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--accent-muted);
+  border: 1.5px solid var(--accent-border);
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  margin-top: 0.1rem;
+}
+
+.pmt-step-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pmt-step-title {
+  margin: 0 0 0.2rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.pmt-step-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.pmt-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Sub-steps within a step */
+.pmt-substep {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.pmt-substep-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Relay quick-connect row */
+.pmt-relay-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pmt-relay-prefix {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Result areas */
+.pmt-result {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pmt-result-ok {
+  background: rgba(62, 232, 122, 0.07);
+  border: 1px solid var(--accent-border);
+}
+
+.pmt-result-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.pmt-result-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.pmt-result-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.pmt-invoice-code {
+  flex: 1;
+  min-width: 0;
+}
+
+.pmt-copy-btn {
+  flex-shrink: 0;
+}
+
+.pmt-autofill-btn {
+  align-self: flex-start;
+  margin-bottom: 0.25rem;
+}
+
+/* Verify status badge */
+.pmt-verify-status {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+/* Divider in verify step */
+.pmt-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0.25rem 0;
+}
+
+/* Selected channel row */
+.pmt-row-selected td {
+  background: var(--accent-muted);
+}
+
+/* Channel table spacing */
+.pmt-channel-table {
+  margin-top: 0.75rem;
+}
+
+/* Empty hint spacing */
+.pmt-empty-hint {
+  margin-top: 0.75rem;
+}
+
+/* Close note */
+.pmt-close-note {
+  margin-top: 0.5rem;
+}
+
+/* Activity section */
+.pmt-activity {
+  margin-top: 0.5rem;
+}

@@ -4,6 +4,7 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
 import { NetworkTab } from "./components/NetworkTab";
+import { PaymentsTab } from "./components/PaymentsTab";
 import {
   GUIDED_SETUP_COMPLETE,
   GUIDED_SETUP_DISMISSED,
@@ -36,9 +37,14 @@ const TABS = [
   },
   { id: "node" as const, label: "Node", hint: "Start, stop, and logs" },
   {
+    id: "payments" as const,
+    label: "Payments",
+    hint: "Channels, invoices, and sends",
+  },
+  {
     id: "network" as const,
     label: "Network",
-    hint: "Connect and try payments",
+    hint: "Node info and channel status",
   },
 ];
 
@@ -1218,6 +1224,13 @@ function App() {
                 />
               </section>
             </div>
+          )}
+
+          {tab === "payments" && (
+            <PaymentsTab
+              netId={netId}
+              callFiberRpc={rpc}
+            />
           )}
 
           {tab === "network" && (

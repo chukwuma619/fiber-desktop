@@ -8,6 +8,8 @@ export type ParsedNodeSummary = {
   pendingChannelCount: string;
   peersCount: string;
   addresses: string[];
+  /** From default_funding_lock_script.args — used for close_script in shutdown_channel. */
+  lockArg: string;
 };
 
 export type ParsedChannelRow = {
@@ -20,6 +22,7 @@ export type ParsedChannelRow = {
   remoteBalance: string;
   isPublic: boolean;
   enabled: boolean;
+  isUdt: boolean;
 };
 
 export type ParsedGraphNodeRow = {
@@ -104,6 +107,10 @@ function formatFromBigInt(shannons: bigint): string {
 
 export function summarizeChannelState(state: unknown): string {
   if (isRecord(state)) {
+    // Fiber v0.8+: { state_name: "CHANNEL_READY", state_flags: [] }
+    if (typeof state.state_name === "string") {
+      return state.state_name;
+    }
     const keys = Object.keys(state);
     if (keys.length === 1) {
       return keys[0] ?? JSON.stringify(state);
@@ -128,6 +135,13 @@ export function parseNodeInfo(result: unknown): ParsedNodeSummary | null {
   const addresses = Array.isArray(result.addresses)
     ? result.addresses.filter((x): x is string => typeof x === "string")
     : [];
+
+  // Extract lock arg from default_funding_lock_script (v0.8+)
+  const fundingLock = isRecord(result.default_funding_lock_script)
+    ? result.default_funding_lock_script
+    : null;
+  const lockArg = fundingLock ? (pickStr(fundingLock.args) ?? "") : "";
+
   return {
     version: pickStr(result.version) ?? "—",
     pubkey,
@@ -136,6 +150,7 @@ export function parseNodeInfo(result: unknown): ParsedNodeSummary | null {
     pendingChannelCount: formatMaybeHexInt(result.pending_channel_count),
     peersCount: formatMaybeHexInt(result.peers_count),
     addresses,
+    lockArg,
   };
 }
 
@@ -153,7 +168,8 @@ export function parseChannelList(result: unknown): ParsedChannelRow[] {
       continue;
     }
     const channelId = pickStr(item.channel_id) ?? "";
-    const peer = pickStr(item.pubkey) ?? "";
+    // API field is peer_pubkey (v0.8+); fall back to pubkey for older responses
+    const peer = pickStr(item.peer_pubkey) ?? pickStr(item.pubkey) ?? "";
     rows.push({
       channelId,
       channelIdDisplay: channelId ? truncateMiddle(channelId, 10, 8) : "—",
@@ -164,6 +180,7 @@ export function parseChannelList(result: unknown): ParsedChannelRow[] {
       remoteBalance: formatShannonsLike(item.remote_balance),
       isPublic: item.is_public === true,
       enabled: item.enabled !== false,
+      isUdt: item.funding_udt_type_script != null,
     });
   }
   return rows;
@@ -221,14 +238,33 @@ export function summarizeRpcResult(method: string, result: unknown): string {
     }
     case "connect_peer":
       return "Connected (or acknowledged)";
-    case "open_channel":
+    case "open_channel": {
+      if (isRecord(result) && typeof result.temporary_channel_id === "string") {
+        return `Temp ID: ${truncateMiddle(result.temporary_channel_id, 10, 8)}`;
+      }
       return "Open channel requested";
+    }
     case "new_invoice": {
       const inv = pickInvoiceAddress(result);
       return inv ? `Invoice ${truncateMiddle(inv, 12, 10)}` : "Invoice created";
     }
-    case "send_payment":
+    case "send_payment": {
+      if (isRecord(result)) {
+        const hash = typeof result.payment_hash === "string" ? result.payment_hash : null;
+        const status = typeof result.status === "string" ? result.status : null;
+        if (hash && status) return `${status} · ${truncateMiddle(hash, 8, 6)}`;
+      }
       return "Payment RPC returned";
+    }
+    case "get_payment": {
+      if (isRecord(result)) {
+        const status = typeof result.status === "string" ? result.status : null;
+        if (status) return `Status: ${status}`;
+      }
+      return "Payment info received";
+    }
+    case "shutdown_channel":
+      return "Channel shutdown requested";
     default:
       return "OK";
   }
