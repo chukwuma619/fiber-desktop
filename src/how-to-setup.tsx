@@ -1,12 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { GuidesIndexPage } from "./components/guides/GuidesIndexPage";
+import { HowToSetupPage } from "./components/guides/HowToSetupPage";
 import "./App.css";
 import "./LandingPage.css";
 import "./HowItWorksPage.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <GuidesIndexPage />
+    <HowToSetupPage />
   </React.StrictMode>,
 );

@@ -452,3 +452,97 @@
   margin-top: 1.5rem;
   justify-content: center;
 }
+
+/* ── Multi-page guides layout ── */
+.hiw-body-single {
+  grid-template-columns: 1fr;
+  max-width: 720px;
+}
+
+.hiw-article-flush {
+  padding-top: 2rem;
+}
+
+.hiw-section-tight {
+  padding-bottom: 2rem;
+  margin-bottom: 2rem;
+}
+
+.hiw-guide-header-nav {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 0.35rem;
+  column-gap: 0.85rem;
+  max-width: min(100vw - 10rem, 38rem);
+}
+
+.hiw-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .hiw-guide-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.hiw-guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+
+.hiw-guide-card:hover {
+  border-color: var(--accent-border);
+  background: rgba(62, 232, 122, 0.05);
+  transform: translateY(-1px);
+}
+
+.hiw-guide-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.hiw-guide-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.hiw-guide-card-desc {
+  margin: 0;
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.hiw-guide-card-cta {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hiw-back-link {
+  margin: 2rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.hiw-back-link a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

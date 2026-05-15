@@ -22,7 +22,7 @@ export function LandingPage() {
         </a>
         <div className="landing-header-right">
           <nav className="landing-header-nav" aria-label="Site links">
-            <a className="landing-header-link" href="/how-it-works.html">How it works</a>
+            <a className="landing-header-link" href="/how-it-works.html">Guides</a>
             <a className="landing-header-link" href="https://docs.fiber.world/" target="_blank" rel="noreferrer">Docs</a>
             <a className="landing-header-link" href="https://www.fiber.world/" target="_blank" rel="noreferrer">fiber.world</a>
             <a className="landing-header-link" href={FIBER_DESKTOP_REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
@@ -76,6 +76,7 @@ export function LandingPage() {
                   <span className="landing-window-nav landing-window-nav-active">Overview</span>
                   <span className="landing-window-nav">Setup</span>
                   <span className="landing-window-nav">Node</span>
+                  <span className="landing-window-nav">Payments</span>
                   <span className="landing-window-nav">Network</span>
                 </div>
                 <div className="landing-window-content">
@@ -180,6 +181,9 @@ export function LandingPage() {
               <div>
                 <h3 className="landing-step-title">Go live</h3>
                 <p className="landing-step-text">Start fnn, watch the live log, connect to public relays, and try channel and payment flows.</p>
+                <p className="landing-step-text" style={{ marginTop: "0.5rem" }}>
+                  <a href="/how-it-works.html">Open step-by-step guides →</a>
+                </p>
               </div>
             </li>
           </ol>
@@ -226,6 +230,7 @@ export function LandingPage() {
           </div>
           <div className="landing-footer-col">
             <span className="landing-footer-col-title">Learn</span>
+            <a href="/how-it-works.html">Guides</a>
             <a href="https://docs.fiber.world/" target="_blank" rel="noreferrer">Documentation</a>
             <a href="https://www.fiber.world/" target="_blank" rel="noreferrer">fiber.world</a>
           </div>
