@@ -1,10 +1,12 @@
 //! Download and extract the pinned fnn release from GitHub (matches EXECUTION_PLAN).
 
 use flate2::read::GzDecoder;
+use serde::Serialize;
 use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tar::Archive;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Pinned tag; bump with Fiber breaking RPC changes.
 pub const PINNED_FNN_TAG: &str = "v0.8.1";
@@ -14,6 +16,14 @@ pub struct PinnedFnnMeta {
     pub tag: &'static str,
     pub asset_file_name: String,
     pub download_url: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgress {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+    pub phase: String,
 }
 
 pub fn pinned_fnn_metadata() -> Result<PinnedFnnMeta, String> {
@@ -82,13 +92,47 @@ pub fn download_and_install(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     std::fs::create_dir_all(&out_root).map_err(|e| e.to_string())?;
 
     let tmp_gz = out_root.join(&meta.asset_file_name);
-    let mut reader = ureq::get(&meta.download_url)
+    let response = ureq::get(&meta.download_url)
         .call()
-        .map_err(|e| format!("download failed: {e}"))?
-        .into_reader();
+        .map_err(|e| format!("download failed: {e}"))?;
+
+    let total: Option<u64> = response
+        .header("content-length")
+        .and_then(|v| v.parse().ok());
+
+    let mut reader = response.into_reader();
     let mut f = File::create(&tmp_gz).map_err(|e| e.to_string())?;
-    std::io::copy(&mut reader, &mut f).map_err(|e| format!("write archive: {e}"))?;
+    let mut downloaded: u64 = 0;
+    let mut buf = [0u8; 65536];
+    loop {
+        let n = reader
+            .read(&mut buf)
+            .map_err(|e| format!("read error: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        f.write_all(&buf[..n])
+            .map_err(|e| format!("write error: {e}"))?;
+        downloaded += n as u64;
+        let _ = app.emit(
+            "fnn-download-progress",
+            DownloadProgress {
+                downloaded,
+                total,
+                phase: "downloading".to_string(),
+            },
+        );
+    }
     drop(f);
+
+    let _ = app.emit(
+        "fnn-download-progress",
+        DownloadProgress {
+            downloaded,
+            total,
+            phase: "extracting".to_string(),
+        },
+    );
 
     let extract_dir = out_root.join(format!("extract-{}", std::process::id()));
     if extract_dir.exists() {

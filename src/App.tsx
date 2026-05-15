@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
@@ -135,6 +136,11 @@ function App() {
   const [rpcReachable, setRpcReachable] = useState(false);
   const [pinnedInfo, setPinnedInfo] = useState<PinnedFnnInfo | null>(null);
   const [toolsBusy, setToolsBusy] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    downloaded: number;
+    total: number | null;
+    phase: "downloading" | "extracting";
+  } | null>(null);
   const [fnnBinaryStatus, setFnnBinaryStatus] =
     useState<FnnBinaryStatus | null>(null);
 
@@ -382,7 +388,15 @@ function App() {
 
   async function downloadPinnedFnn() {
     setToolsBusy("dl");
+    setDownloadProgress(null);
     setLoadError(null);
+    const unlisten = await listen<{
+      downloaded: number;
+      total: number | null;
+      phase: "downloading" | "extracting";
+    }>("fnn-download-progress", (event) => {
+      setDownloadProgress(event.payload);
+    });
     try {
       await invoke<string>("download_pinned_fnn");
       await refreshSettings();
@@ -390,6 +404,8 @@ function App() {
     } catch (e) {
       setLoadError(String(e));
     } finally {
+      unlisten();
+      setDownloadProgress(null);
       setToolsBusy(null);
     }
   }
@@ -1252,6 +1268,7 @@ function App() {
           programReady={programReady}
           onDownloadFnn={downloadPinnedFnn}
           toolsBusy={toolsBusy}
+          downloadProgress={downloadProgress}
           onInstallConfig={installUpstreamConfig}
           wizardPassword={guidedWizardPassword}
           onWizardPasswordChange={setGuidedWizardPassword}

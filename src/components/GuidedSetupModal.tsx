@@ -4,6 +4,12 @@ import type { NetworkId } from "../lib/publicNodes";
 
 export type GuidedStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 type Props = {
   open: boolean;
   step: GuidedStep;
@@ -19,6 +25,11 @@ type Props = {
   programReady: boolean;
   onDownloadFnn: () => Promise<void>;
   toolsBusy: string | null;
+  downloadProgress: {
+    downloaded: number;
+    total: number | null;
+    phase: "downloading" | "extracting";
+  } | null;
   onInstallConfig: () => Promise<void>;
   wizardPassword: string;
   onWizardPasswordChange: (v: string) => void;
@@ -57,6 +68,7 @@ export function GuidedSetupModal({
   programReady,
   onDownloadFnn,
   toolsBusy,
+  downloadProgress,
   onInstallConfig,
   wizardPassword,
   onWizardPasswordChange,
@@ -262,17 +274,41 @@ export function GuidedSetupModal({
                       aria-live="polite"
                       aria-busy="true"
                     >
-                      <span className="guided-spinner" aria-hidden />
-                      <div>
+                      <div className="guided-progress-header">
+                        <span className="guided-spinner" aria-hidden />
                         <strong className="guided-progress-title">
-                          Download in progress
+                          {downloadProgress?.phase === "extracting"
+                            ? "Unpacking…"
+                            : "Downloading…"}
                         </strong>
-                        <p className="guided-progress-desc">
-                          Fetching the archive from GitHub and unpacking it can
-                          take one to three minutes. This window stays open—please
-                          wait.
-                        </p>
+                        {downloadProgress?.phase === "downloading" && (
+                          <span className="guided-progress-pct">
+                            {downloadProgress.total
+                              ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                              : formatBytes(downloadProgress.downloaded)}
+                          </span>
+                        )}
                       </div>
+                      {downloadProgress?.phase === "downloading" && (
+                        <div className="guided-progress-bar-track" aria-hidden>
+                          <div
+                            className="guided-progress-bar-fill"
+                            style={{
+                              width: downloadProgress.total
+                                ? `${Math.min(100, (downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                : "100%",
+                              opacity: downloadProgress.total ? 1 : 0.5,
+                            }}
+                          />
+                        </div>
+                      )}
+                      <p className="guided-progress-desc">
+                        {downloadProgress?.phase === "extracting"
+                          ? "Unpacking the archive — almost done."
+                          : downloadProgress?.total
+                            ? `${formatBytes(downloadProgress.downloaded)} of ${formatBytes(downloadProgress.total)}`
+                            : "Fetching from GitHub… this window stays open, please wait."}
+                      </p>
                     </div>
                   ) : null}
                   {!bundledAvailable && programReady ? (
@@ -397,16 +433,7 @@ export function GuidedSetupModal({
                   {settings.fnnDataDir.replace(/\/$/, "")}/ckb/key
                 </code>
                 . The password you saved only encrypts this file; it does not
-                create the key.{" "}
-                <a
-                  className="inline-link"
-                  href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Fiber docs
-                </a>
-                .
+                create the key
               </p>
               <label className="field guided-field">
                 <span className="field-label">Private key (hex)</span>
