@@ -5,7 +5,9 @@ import { GuidesIndexPage } from "./components/guides/GuidesIndexPage";
 import { HowToReceivePage } from "./components/guides/HowToReceivePage";
 import { HowToSendPage } from "./components/guides/HowToSendPage";
 import { HowToSetupPage } from "./components/guides/HowToSetupPage";
+import { DownloadPage } from "./components/DownloadPage";
 import { LandingPage } from "./components/LandingPage";
+import { SiteNavbar } from "./components/SiteNavbar";
 import "./fiber-desktop-theme.css";
 import "./LandingPage.css";
 import "./HowItWorksPage.css";
@@ -22,8 +24,10 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <SiteNavbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/download" element={<DownloadPage />} />
         <Route path="/how-it-works" element={<GuidesIndexPage />} />
         <Route path="/how-to-send" element={<HowToSendPage />} />
         <Route path="/how-to-receive" element={<HowToReceivePage />} />

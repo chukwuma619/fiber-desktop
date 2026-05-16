@@ -48,6 +48,22 @@
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(6, 6, 8, 0.85);
   backdrop-filter: blur(14px);
+  /* lets absolutely centered nav sit above the bar background */
+  isolation: isolate;
+}
+
+.landing-header-nav-centered {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  justify-content: center;
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+  column-gap: 1.25rem;
+  max-width: min(92vw, 28rem);
 }
 
 .landing-brand {
@@ -57,6 +73,8 @@
   text-decoration: none;
   color: inherit;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .landing-brand:focus-visible {
@@ -80,14 +98,7 @@
   letter-spacing: -0.02em;
 }
 
-.landing-header-right {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex-shrink: 0;
-}
-
-.landing-header-nav {
+.landing-brand-title {
   display: flex;
   align-items: center;
   gap: 1.25rem;
@@ -125,6 +136,9 @@
   background: var(--accent);
   white-space: nowrap;
   transition: background 0.1s;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 .landing-header-download:hover { background: var(--accent-hover); }
@@ -132,6 +146,10 @@
 .landing-header-download:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+.landing-header-download-active {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-border);
 }
 
 /* ─── Main container ─── */

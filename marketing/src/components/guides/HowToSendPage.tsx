@@ -4,7 +4,6 @@ import { Callout, Code, Step } from "./guidePrimitives";
 export function HowToSendPage() {
   return (
     <GuideChrome
-      activeNav="send"
       heroEyebrow="Guide"
       heroTitle="How to send a payment"
       heroSub="You are the payer: you need a running node, a funded channel in the ready state, and an invoice string from the person you are paying."

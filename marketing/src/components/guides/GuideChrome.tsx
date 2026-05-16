@@ -4,15 +4,7 @@ import {
   fiberDesktopReleasesUrl,
 } from "../../constants/marketing";
 
-export type GuideNavKey = "index" | "setup" | "send" | "receive" | "about";
-
-const INTERNAL = [
-  { key: "index" as const, href: "/how-it-works", label: "Guides" },
-  { key: "about" as const, href: "/about-project", label: "About" },
-];
-
 type GuideChromeProps = {
-  activeNav: GuideNavKey;
   heroEyebrow: string;
   heroTitle: string;
   heroSub?: string;
@@ -20,7 +12,6 @@ type GuideChromeProps = {
 };
 
 export function GuideChrome({
-  activeNav,
   heroEyebrow,
   heroTitle,
   heroSub,
@@ -30,59 +21,6 @@ export function GuideChrome({
 
   return (
     <div className="hiw-page">
-      <header className="landing-header">
-        <a className="landing-brand" href="/">
-          <span className="landing-brand-mark" aria-hidden />
-          <span className="landing-brand-title">Fiber Desktop</span>
-        </a>
-        <div className="landing-header-right">
-          <nav
-            className="landing-header-nav hiw-guide-header-nav"
-            aria-label="Site and guides"
-          >
-            <a className="landing-header-link" href="/">
-              Home
-            </a>
-            {INTERNAL.map((item) => (
-              <a
-                key={item.key}
-                className={`landing-header-link${
-                  activeNav === item.key ? " landing-header-link-active" : ""
-                }`}
-                href={item.href}
-                aria-current={activeNav === item.key ? "page" : undefined}
-              >
-                {item.label}
-              </a>
-            ))}
-            <a
-              className="landing-header-link"
-              href="https://docs.fiber.world/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Docs
-            </a>
-            <a
-              className="landing-header-link"
-              href={FIBER_DESKTOP_REPO_URL}
-              target="_blank"
-              rel="noreferrer"
-            >
-              GitHub
-            </a>
-          </nav>
-          <a
-            className="landing-header-download"
-            href={releasesUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Download
-          </a>
-        </div>
-      </header>
-
       <div className="hiw-hero">
         <div className="hiw-hero-inner">
           <p className="landing-eyebrow">{heroEyebrow}</p>
@@ -92,7 +30,9 @@ export function GuideChrome({
       </div>
 
       <div className="hiw-body hiw-body-single">
-        <article className="hiw-article hiw-article-flush">{children}</article>
+        <article id="main" className="hiw-article hiw-article-flush">
+          {children}
+        </article>
       </div>
 
       <footer className="landing-footer">
@@ -106,6 +46,7 @@ export function GuideChrome({
           </div>
           <div className="landing-footer-col">
             <span className="landing-footer-col-title">Product</span>
+            <a href="/download">Download</a>
             <a href={releasesUrl} target="_blank" rel="noreferrer">
               Releases
             </a>

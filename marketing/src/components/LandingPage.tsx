@@ -8,31 +8,6 @@ export function LandingPage() {
 
   return (
     <div className="landing" id="top">
-      <a className="landing-skip" href="#main">
-        Skip to content
-      </a>
-
-      {/* ── Header ── */}
-      <header className="landing-header">
-        <a className="landing-brand" href="#top" aria-current="page">
-          <span className="landing-brand-mark" aria-hidden />
-          <span className="landing-brand-text">
-            <span className="landing-brand-title">Fiber Desktop</span>
-          </span>
-        </a>
-        <div className="landing-header-right">
-          <nav className="landing-header-nav" aria-label="Site links">
-            <a className="landing-header-link" href="/how-it-works">Guides</a>
-            <a className="landing-header-link" href="https://docs.fiber.world/" target="_blank" rel="noreferrer">Docs</a>
-            <a className="landing-header-link" href="https://www.fiber.world/" target="_blank" rel="noreferrer">fiber.world</a>
-            <a className="landing-header-link" href={FIBER_DESKTOP_REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
-          </nav>
-          <a className="landing-header-download" href={releasesUrl} target="_blank" rel="noreferrer">
-            Download
-          </a>
-        </div>
-      </header>
-
       <main id="main" className="landing-main">
 
         {/* ── Hero ── */}
@@ -53,7 +28,7 @@ export function LandingPage() {
                 touching the terminal.
               </p>
               <div className="landing-cta-row">
-                <a className="landing-cta-primary" href={releasesUrl} target="_blank" rel="noreferrer">
+                <a className="landing-cta-primary" href="/download">
                   <span className="landing-cta-label">Download Fiber Desktop</span>
                   <span className="landing-cta-meta">macOS &amp; Windows · free</span>
                 </a>
@@ -196,9 +171,9 @@ export function LandingPage() {
             Download the latest release and follow the in-app guided setup.
           </p>
           <div className="landing-cta-row landing-cta-row-center">
-            <a className="landing-cta-primary" href={releasesUrl} target="_blank" rel="noreferrer">
+            <a className="landing-cta-primary" href="/download">
               <span className="landing-cta-label">Download Fiber Desktop</span>
-              <span className="landing-cta-meta">GitHub Releases · free</span>
+              <span className="landing-cta-meta">Pick your OS · free</span>
             </a>
             <a className="landing-cta-ghost" href="https://docs.fiber.world/" target="_blank" rel="noreferrer">
               Read the docs
@@ -220,6 +195,7 @@ export function LandingPage() {
           </div>
           <div className="landing-footer-col">
             <span className="landing-footer-col-title">Product</span>
+            <a href="/download">Download</a>
             <a href={releasesUrl} target="_blank" rel="noreferrer">Releases</a>
             <a href={FIBER_DESKTOP_REPO_URL} target="_blank" rel="noreferrer">Source code</a>
           </div>

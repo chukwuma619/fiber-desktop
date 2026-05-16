@@ -5,7 +5,6 @@ import { Callout, Code, Pill } from "./guidePrimitives";
 export function AboutProjectPage() {
   return (
     <GuideChrome
-      activeNav="about"
       heroEyebrow="About"
       heroTitle="About Fiber Desktop"
       heroSub="A native desktop shell around the official Fiber node (fnn) so you can run payment channels on Nervos CKB without living in a terminal."

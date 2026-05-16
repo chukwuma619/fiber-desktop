@@ -7,7 +7,6 @@ export function HowToSetupPage() {
 
   return (
     <GuideChrome
-      activeNav="setup"
       heroEyebrow="Guide"
       heroTitle="How to set up Fiber Desktop"
       heroSub="From download to a running node: install, keys, password, and first start."
@@ -15,7 +14,8 @@ export function HowToSetupPage() {
       <section className="hiw-section hiw-section-tight" id="install">
         <h2 className="hiw-h2">Install &amp; first launch</h2>
         <p>
-          Download the installer for your OS from{" "}
+          Download the installer for your OS from the{" "}
+          <a href="/download">downloads page</a> or{" "}
           <a href={releasesUrl} target="_blank" rel="noreferrer">
             GitHub Releases
           </a>

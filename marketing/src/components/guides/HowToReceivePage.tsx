@@ -4,7 +4,6 @@ import { Callout, Code, Step } from "./guidePrimitives";
 export function HowToReceivePage() {
   return (
     <GuideChrome
-      activeNav="receive"
       heroEyebrow="Guide"
       heroTitle="How to receive a payment"
       heroSub="You are the payee: you create an invoice in Fiber Desktop and send the invoice string to the payer through any channel you already use (chat, email, etc.)."
