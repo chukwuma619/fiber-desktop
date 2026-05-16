@@ -1,0 +1,66 @@
+/* Design tokens + base reset shared with Fiber Desktop (from app shell theme). */
+
+:root {
+  --font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    monospace;
+
+  --bg: #060608;
+  --bg-elevated: #0e0e12;
+  --bg-muted: #141419;
+  --bg-nav: #030304;
+  --bg-nav-hover: rgba(62, 232, 122, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.055);
+
+  --text: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-on-nav: #fafafa;
+  --text-on-nav-muted: #a1a1aa;
+
+  --accent: #3ee87a;
+  --accent-hover: #6ef0a0;
+  --accent-muted: rgba(62, 232, 122, 0.14);
+  --accent-border: rgba(62, 232, 122, 0.38);
+  --accent-ring: rgba(62, 232, 122, 0.28);
+  --accent-focus: rgba(62, 232, 122, 0.22);
+  --danger: #f87171;
+  --danger-muted: rgba(248, 113, 113, 0.14);
+  --warn: #fbbf24;
+
+  --input-hover-border: #3f3f46;
+  --log-bg: #080a0d;
+  --log-fg: #c8d0dc;
+  --log-placeholder: #64748b;
+  --banner-error-bg: rgba(69, 10, 10, 0.72);
+  --banner-error-fg: #fecaca;
+  --banner-error-border: rgba(248, 113, 113, 0.4);
+
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --focus: 0 0 0 3px var(--accent-focus);
+
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
