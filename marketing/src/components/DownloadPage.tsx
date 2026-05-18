@@ -34,7 +34,7 @@ type LoadState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ok"; release: GithubLatestRelease; rows: InstallerRow[] }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; retryKey: number };
 
 function groupByOs(rows: InstallerRow[]): Record<ClientOs, InstallerRow[]> {
   const buckets: Record<ClientOs, InstallerRow[]> = {
@@ -54,6 +54,7 @@ export function DownloadPage() {
   const slug = useMemo(() => defaultFiberDesktopRepoSlug(), []);
   const clientOs = useSyncExternalStore(noopSubscribe, detectClientOs, getServerOs);
   const [state, setState] = useState<LoadState>({ status: "idle" });
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +66,7 @@ export function DownloadPage() {
           status: "error",
           message:
             "Release source is not a github.com URL. Open the releases page manually.",
+          retryKey,
         });
         return;
       }
@@ -78,13 +80,13 @@ export function DownloadPage() {
         if (cancelled) return;
         const message =
           e instanceof Error ? e.message : "Could not load the latest release.";
-        setState({ status: "error", message });
+        setState({ status: "error", message, retryKey });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, retryKey]);
 
   const recommended = useMemo(() => {
     if (state.status !== "ok") return undefined;
@@ -116,7 +118,14 @@ export function DownloadPage() {
           <a href={releasesPageUrl} target="_blank" rel="noreferrer">
             Browse releases on GitHub
           </a>{" "}
-          and download the file for your system.
+          and download the file for your system.{" "}
+          <button
+            type="button"
+            onClick={() => setRetryKey((k) => k + 1)}
+            style={{ marginLeft: "0.5rem", cursor: "pointer", textDecoration: "underline", background: "none", border: "none", padding: 0, color: "inherit", font: "inherit" }}
+          >
+            Try again
+          </button>
         </Callout>
       ) : null}
 
