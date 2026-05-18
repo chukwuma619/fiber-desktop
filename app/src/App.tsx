@@ -265,8 +265,16 @@ function App() {
   }, [refreshCkbKeyStatus]);
 
   useEffect(() => {
+    // Before the first status poll, try to adopt any fnn process that was left
+    // running from a previous session. This prevents a "stopped" flash and the
+    // "data folder already in use" error when the user tries to start a node
+    // that is in fact still running.
+    invoke("fnn_adopt_orphan")
+      .catch(() => {})
+      .finally(() => {
+        void refreshNodeRuntime();
+      });
     const t = window.setInterval(() => void refreshNodeRuntime(), 1500);
-    void refreshNodeRuntime();
     return () => window.clearInterval(t);
   }, [refreshNodeRuntime]);
 

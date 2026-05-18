@@ -46,6 +46,7 @@ pub fn run() {
             commands::ckb_key_status,
             commands::write_ckb_private_key,
             commands::use_bundled_fnn_binary,
+            commands::fnn_adopt_orphan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

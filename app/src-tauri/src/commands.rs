@@ -8,7 +8,11 @@ use crate::secret;
 use crate::settings::{self, AppSettings};
 use serde::Serialize;
 use serde_json::Value;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+fn fnn_pid_file(data_dir: &str) -> PathBuf {
+    Path::new(data_dir).join("fiber-desktop.pid")
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -190,17 +194,53 @@ pub fn fnn_start(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Re
     let password = secret::get_fnn_secret_password()?.ok_or_else(|| {
         "No FNN key password in OS keychain. Save one under Security first.".to_string()
     })?;
-    runtime.start(
+    let pid = runtime.start(
         &settings.fnn_binary_path,
         &settings.fnn_config_path,
         &settings.fnn_data_dir,
         &password,
-    )
+    )?;
+    let _ = std::fs::write(fnn_pid_file(&settings.fnn_data_dir), pid.to_string());
+    Ok(pid)
 }
 
 #[tauri::command]
-pub fn fnn_stop(runtime: tauri::State<FnnRuntime>) -> Result<(), String> {
-    runtime.stop()
+pub fn fnn_stop(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Result<(), String> {
+    let result = runtime.stop();
+    if let Ok(settings) = settings::load_or_default(&app) {
+        let _ = std::fs::remove_file(fnn_pid_file(&settings.fnn_data_dir));
+    }
+    result
+}
+
+/// Called once on app startup. Reads the saved PID file and, if the process is
+/// still alive, adopts it so the UI shows the correct "running" state instead of
+/// prompting the user to start a node that is already running.
+#[tauri::command]
+pub fn fnn_adopt_orphan(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> bool {
+    let settings = match settings::load_or_default(&app) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let pid_file = fnn_pid_file(&settings.fnn_data_dir);
+    let pid_str = match std::fs::read_to_string(&pid_file) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let pid: u32 = match pid_str.trim().parse() {
+        Ok(p) => p,
+        Err(_) => {
+            let _ = std::fs::remove_file(&pid_file);
+            return false;
+        }
+    };
+    if runtime.adopt(pid) {
+        true
+    } else {
+        // Stale PID file – process is no longer alive.
+        let _ = std::fs::remove_file(&pid_file);
+        false
+    }
 }
 
 #[tauri::command]

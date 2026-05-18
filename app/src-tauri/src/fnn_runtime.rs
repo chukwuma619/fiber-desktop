@@ -29,6 +29,78 @@ fn strip_ansi_escapes(s: &str) -> String {
     out
 }
 
+/// Returns true if the process with the given PID is currently alive.
+fn pid_is_alive(pid: u32) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        Path::new(&format!("/proc/{pid}")).exists()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("ps")
+            .args(["-p", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        // We approximate by checking if `tasklist /FI "PID eq {pid}"` returns a line.
+        Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+            .unwrap_or(false)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+    {
+        false
+    }
+}
+
+/// Send SIGTERM then SIGKILL to an adopted process.
+fn kill_pid(pid: u32) {
+    #[cfg(unix)]
+    {
+        let _ = Command::new("/bin/kill")
+            .arg(pid.to_string())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        // Give the process a moment to exit cleanly before forcing.
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if pid_is_alive(pid) {
+            let _ = Command::new("/bin/kill")
+                .args(["-9", &pid.to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+/// The two ways the runtime can own an fnn process.
+enum FnnSlot {
+    /// Spawned by this app session – we hold the `Child` handle.
+    Owned(Child),
+    /// Found alive from a previous session – we only have the PID.
+    Adopted(u32),
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FnnStatusPayload {
@@ -38,7 +110,7 @@ pub struct FnnStatusPayload {
 }
 
 pub struct FnnRuntime {
-    child: Mutex<Option<Child>>,
+    child: Mutex<Option<FnnSlot>>,
     logs: Arc<Mutex<VecDeque<String>>>,
 }
 
@@ -58,6 +130,33 @@ impl FnnRuntime {
         g.push_back(line);
     }
 
+    /// Try to adopt an orphaned fnn process from a previous session.
+    /// Returns `true` when the PID is alive and the slot was set.
+    pub fn adopt(&self, pid: u32) -> bool {
+        if !pid_is_alive(pid) {
+            return false;
+        }
+        let mut slot = self.child.lock();
+        // Don't override a currently-running owned process.
+        if let Some(FnnSlot::Owned(ref mut ch)) = *slot {
+            if ch.try_wait().ok().flatten().is_none() {
+                return false;
+            }
+        }
+        {
+            let mut g = self.logs.lock();
+            g.clear();
+            g.push_back(format!(
+                "[fiber-desktop] Reconnected to running fnn process (PID {pid})."
+            ));
+            g.push_back(
+                "[fiber-desktop] Logs from before this session are not available.".to_string(),
+            );
+        }
+        *slot = Some(FnnSlot::Adopted(pid));
+        true
+    }
+
     /// Spawn fnn. Does not log the password.
     pub fn start(
         &self,
@@ -68,10 +167,18 @@ impl FnnRuntime {
     ) -> Result<u32, String> {
         {
             let mut slot = self.child.lock();
-            if let Some(ref mut ch) = *slot {
-                if ch.try_wait().map_err(|e| e.to_string())?.is_none() {
-                    return Err("FNN is already running".to_string());
+            match &mut *slot {
+                Some(FnnSlot::Owned(ref mut ch)) => {
+                    if ch.try_wait().map_err(|e| e.to_string())?.is_none() {
+                        return Err("FNN is already running".to_string());
+                    }
                 }
+                Some(FnnSlot::Adopted(pid)) => {
+                    if pid_is_alive(*pid) {
+                        return Err("FNN is already running".to_string());
+                    }
+                }
+                None => {}
             }
             *slot = None;
         }
@@ -129,23 +236,29 @@ impl FnnRuntime {
         }
 
         let mut slot = self.child.lock();
-        *slot = Some(child);
+        *slot = Some(FnnSlot::Owned(child));
         Ok(pid)
     }
 
     pub fn stop(&self) -> Result<(), String> {
         let mut slot = self.child.lock();
-        if let Some(mut ch) = slot.take() {
-            let _ = ch.kill();
-            let _ = ch.wait();
+        match slot.take() {
+            Some(FnnSlot::Owned(mut ch)) => {
+                let _ = ch.kill();
+                let _ = ch.wait();
+            }
+            Some(FnnSlot::Adopted(pid)) => {
+                kill_pid(pid);
+            }
+            None => {}
         }
         Ok(())
     }
 
     pub fn status_payload(&self) -> FnnStatusPayload {
         let mut slot = self.child.lock();
-        if let Some(ref mut ch) = *slot {
-            match ch.try_wait() {
+        match &mut *slot {
+            Some(FnnSlot::Owned(ref mut ch)) => match ch.try_wait() {
                 Ok(None) => FnnStatusPayload {
                     kind: "running",
                     pid: Some(ch.id()),
@@ -168,13 +281,29 @@ impl FnnRuntime {
                         exit_code: None,
                     }
                 }
+            },
+            Some(FnnSlot::Adopted(pid)) => {
+                let pid = *pid;
+                if pid_is_alive(pid) {
+                    FnnStatusPayload {
+                        kind: "running",
+                        pid: Some(pid),
+                        exit_code: None,
+                    }
+                } else {
+                    *slot = None;
+                    FnnStatusPayload {
+                        kind: "stopped",
+                        pid: None,
+                        exit_code: None,
+                    }
+                }
             }
-        } else {
-            FnnStatusPayload {
+            None => FnnStatusPayload {
                 kind: "stopped",
                 pid: None,
                 exit_code: None,
-            }
+            },
         }
     }
 
