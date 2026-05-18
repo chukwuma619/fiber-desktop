@@ -14,8 +14,9 @@ export function AboutProjectPage() {
         <p>
           <strong>Fiber Desktop</strong> is an open-source app for <strong>macOS</strong> and{" "}
           <strong>Windows</strong> that runs the Fiber Network node binary (<Code>fnn</Code>) on
-          your machine. It provides tabs for setup, starting and stopping the node, logs, network
-          status, and a <Pill>Payments</Pill> walkthrough for channels, invoices, and sends.
+          your machine.           It provides tabs for setup, starting and stopping the node, logs, network status,
+          and dedicated <Pill>Channels</Pill>, <Pill>Send</Pill>, and <Pill>Receive</Pill> tabs for
+          opening channels, paying invoices, and generating invoices.
         </p>
         <p>
           The <strong>Fiber Network</strong> is a payment-channel layer on{" "}

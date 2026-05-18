@@ -12,8 +12,8 @@ export function HowToReceivePage() {
         <h2 className="hiw-h2">What “channel ready” means for you</h2>
         <p>
           You need at least one channel that is <strong>open on-chain</strong> and shown as ready in
-          the app so the network can route to you. In <strong>Payments</strong> →{" "}
-          <strong>My Channels</strong>, refresh until the state reads{" "}
+          the app so the network can route to you. In the <strong>Channels</strong> tab, click{" "}
+          <strong>Refresh Channels</strong> until the state reads{" "}
           <Code>CHANNEL_READY</Code> or <Code>ChannelReady</Code> (not stuck in negotiating or
           awaiting signatures).
         </p>
@@ -36,27 +36,27 @@ export function HowToReceivePage() {
           />
           <Step
             n={4}
-            text="Open Payments → step 1a — connect to a public relay or a trusted peer so your node is visible on the P2P network."
+            text="Open the Channels tab → Connect peer — connect to a public relay or a trusted peer so your node is visible on the P2P network."
           />
           <Step
             n={5}
-            text="Open Payments → step 1b — open a channel with enough funding toward that peer. On public testnet relays, follow the minimum amounts in the official Fiber guides."
+            text="Open the Channels tab → Open Channel — open a channel with enough funding toward that peer. On public testnet relays, follow the minimum amounts in the official Fiber guides."
           />
           <Step
             n={6}
-            text="Open Payments → step 2 — Refresh Channels until the channel shows CHANNEL_READY / ChannelReady."
+            text="In the Channels tab, click Refresh Channels until the channel shows CHANNEL_READY / ChannelReady."
           />
           <Step
             n={7}
-            text="Open Payments → step 3 — set the invoice amount (hex shannons; presets like 1 CKB are available), optional description, then Create Invoice."
+            text="Open the Receive tab — set the invoice amount (hex shannons; presets like 1 CKB are available), add an optional description, then Create Invoice."
           />
           <Step
             n={8}
-            text="Copy the full invoice string from the app and send it to the payer by Signal, email, or any messenger. They will paste it into Payments → step 4 on their machine."
+            text="Copy the full invoice string from the Receive tab and send it to the payer by Signal, email, or any messenger. They will paste it into the Send tab on their machine."
           />
           <Step
             n={9}
-            text="After they pay, open Payments → step 2 and Refresh Channels. Your local and remote balances should reflect the payment once it has cleared off-chain."
+            text="After they pay, open the Channels tab and click Refresh Channels. Your local and remote balances should reflect the payment once it has cleared off-chain."
           />
         </div>
         <Callout kind="info">

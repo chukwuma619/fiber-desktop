@@ -33,8 +33,10 @@ export function GuidesIndexPage() {
       heroSub="Pick a topic. Each page is self-contained so you can link someone directly to “How to send” or “How to receive.”"
     >
       <Callout kind="info">
-        In the app, most payment actions live under the <strong>Payments</strong> tab. The{" "}
-        <strong>Network</strong> tab is a lighter view for node info and channel lists.
+        The app now has dedicated tabs for each payment action: <strong>Channels</strong> for
+        opening and managing channels, <strong>Send</strong> for paying an invoice, and{" "}
+        <strong>Receive</strong> for creating an invoice. The <strong>Network</strong> tab shows
+        node info and channel status at a glance.
       </Callout>
 
       <div className="hiw-guide-grid">

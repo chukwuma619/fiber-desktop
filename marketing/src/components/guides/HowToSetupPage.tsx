@@ -104,8 +104,8 @@ export function HowToSetupPage() {
           <div className="hiw-trouble-item">
             <h3>No route / payment fails</h3>
             <p>
-              Open <Pill>Payments</Pill>, connect a relay, open a channel, wait for ready, then
-              retry. See also{" "}
+              Open <Pill>Channels</Pill>, connect a relay, open a channel, wait for ready, then
+              open <Pill>Send</Pill> and retry. See also{" "}
               <a href="/how-to-send">How to send</a>.
             </p>
           </div>

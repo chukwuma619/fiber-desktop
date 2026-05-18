@@ -15,10 +15,10 @@ export function HowToSendPage() {
           then the channel cannot carry normal routed payments.
         </p>
         <p>
-          In the app, open <strong>Payments</strong> → step <strong>2 — My Channels</strong> and
-          click <strong>Refresh Channels</strong>. The <strong>State</strong> column should show
-          something like <Code>CHANNEL_READY</Code> or <Code>ChannelReady</Code>. That means the
-          channel is <strong>open and usable</strong> for payments (you still need enough{" "}
+          In the app, open the <strong>Channels</strong> tab and click{" "}
+          <strong>Refresh Channels</strong>. The <strong>State</strong> column should show something
+          like <Code>CHANNEL_READY</Code> or <Code>ChannelReady</Code>. That means the channel is{" "}
+          <strong>open and usable</strong> for payments (you still need enough{" "}
           <strong>local</strong> balance and a route to the payee).
         </p>
         <Callout kind="tip">
@@ -61,15 +61,15 @@ export function HowToSendPage() {
           />
           <Step
             n={4}
-            text="Open Payments → step 1a — connect to a public relay (Relay 1 / Relay 2) or paste a trusted peer multiaddr / pubkey, then Connect."
+            text="Open the Channels tab → Connect peer — connect to a public relay (Relay 1 / Relay 2) or paste a trusted peer multiaddr / pubkey, then Connect."
           />
           <Step
             n={5}
-            text="Open Payments → step 1b — enter the peer pubkey (filled when you click a relay) and a funding amount in hex shannons (1 CKB = 100,000,000 shannons). Public testnet relays often need about 500 CKB or more—see official docs. Click Open Channel."
+            text="Open the Channels tab → Open Channel — enter the peer pubkey (filled when you click a relay) and a funding amount in hex shannons (1 CKB = 100,000,000 shannons). Public testnet relays often need about 500 CKB or more—see official docs. Click Open Channel."
           />
           <Step
             n={6}
-            text="Open Payments → step 2 — Refresh Channels until your new channel shows CHANNEL_READY / ChannelReady. If it stays in a negotiating or awaiting-signatures state, wait for CKB confirmations and refresh again."
+            text="In the Channels tab, click Refresh Channels until your new channel shows CHANNEL_READY / ChannelReady. If it stays in a negotiating or awaiting-signatures state, wait for CKB confirmations and refresh again."
           />
           <Step
             n={7}
@@ -77,11 +77,11 @@ export function HowToSendPage() {
           />
           <Step
             n={8}
-            text="Open Payments → step 4 — paste the full invoice string → Pay Invoice."
+            text="Open the Send tab — paste the full invoice string → Pay Invoice."
           />
           <Step
             n={9}
-            text="Optional: Payments → step 5 — Check Status on the payment hash, and/or refresh My Channels to see balances move."
+            text="Optional: still in the Send tab, use Check Status on the payment hash, and/or open the Channels tab and Refresh Channels to see balances move."
           />
         </div>
         <Callout kind="warn">
