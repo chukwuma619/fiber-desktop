@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import type { NetworkId } from "../lib/publicNodes";
 import {
   parseChannelList,
   parseNodeInfo,
@@ -19,8 +18,6 @@ type RpcHistoryItem = {
 };
 
 export type NetworkTabProps = {
-  netId: NetworkId;
-  nodeKeys: { node1: string; node2: string };
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
 };
 

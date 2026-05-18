@@ -853,6 +853,44 @@ kbd {
   color: var(--text-muted);
 }
 
+.field-hint-warn {
+  color: #e5a23b;
+}
+
+/* Inline connect result */
+.pmt-connect-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+
+.pmt-connect-result-ok {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.pmt-connect-result-err {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.pmt-connect-result-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.pmt-connect-result-msg {
+  flex: 1;
+  word-break: break-word;
+}
+
 .input {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -2126,6 +2164,19 @@ select.input {
 /* Empty hint spacing */
 .pmt-empty-hint {
   margin-top: 0.75rem;
+}
+
+/* Refresh row with inline timestamp feedback */
+.pmt-refresh-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pmt-refresh-stamp {
+  font-size: 0.75rem;
+  color: var(--text-muted, #8b8fa8);
 }
 
 /* Close note */

@@ -1,6 +1,4 @@
 import { useState } from "react";
-import type { NetworkId } from "../lib/publicNodes";
-import { PUBLIC_NODES } from "../lib/publicNodes";
 import {
   parseChannelList,
   parseNodeInfo,
@@ -12,38 +10,50 @@ import { useRpc } from "../lib/useRpc";
 const SECP256K1_CODE_HASH =
   "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8";
 
-const CHANNEL_PRESETS = [
-  { label: "100 CKB", value: "0x2540be400" },
-  { label: "500 CKB", value: "0xba43b7400" },
-];
+const SHANNONS_PER_CKB = 100_000_000n;
+
+/** Parse human CKB (e.g. `500`, `400.5`, up to 8 decimal places) → `0x…` shannons hex for RPC. */
+function ckbAmountToFundingHex(ckbText: string): string | null {
+  const t = ckbText.trim().replace(/,/g, "");
+  if (!t) return null;
+  const m = /^(\d+)(?:\.(\d{1,8}))?$/.exec(t);
+  if (!m) return null;
+  const whole = BigInt(m[1]);
+  const fracStr = m[2] ?? "";
+  if (fracStr.length > 8) return null;
+  const fracShannons =
+    fracStr === "" ? 0n : BigInt(fracStr) * 10n ** (8n - BigInt(fracStr.length));
+  const shannons = whole * SHANNONS_PER_CKB + fracShannons;
+  if (shannons <= 0n) return null;
+  return `0x${shannons.toString(16)}`;
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 export type PaymentsTabProps = {
-  netId: NetworkId;
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
 };
 
-export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
-  const nodes = PUBLIC_NODES[netId];
-
-  // Node summary
+export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
   const [nodeSummary, setNodeSummary] = useState<ParsedNodeSummary | null>(null);
 
   // Channels
   const [channels, setChannels] = useState<ParsedChannelRow[]>([]);
 
   // Step 1: Open Channel
-  const [customAddress, setCustomAddress] = useState("");
   const [openPubkey, setOpenPubkey] = useState("");
-  const [openFunding, setOpenFunding] = useState("0x2540be400");
+  const [fundingCkb, setFundingCkb] = useState("500");
   const [openTempId, setOpenTempId] = useState<string | null>(null);
 
   // Step 3: Close Channel
   const [closeChannelId, setCloseChannelId] = useState("");
   const [closeLockArg, setCloseLockArg] = useState("");
+
+  // Track whether list_channels has ever been called and what it last returned
+  const [channelsLastFetched, setChannelsLastFetched] = useState<Date | null>(null);
+  const [channelsFetchedCount, setChannelsFetchedCount] = useState<number | null>(null);
 
   const { runRpc, rpcError, setRpcError, history, rawJson, busy, anyBusy } =
     useRpc({
@@ -55,7 +65,10 @@ export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
           if (parsed?.lockArg) setCloseLockArg(parsed.lockArg);
         }
         if (method === "list_channels") {
-          setChannels(parseChannelList(result));
+          const parsed = parseChannelList(result);
+          setChannels(parsed);
+          setChannelsLastFetched(new Date());
+          setChannelsFetchedCount(parsed.length);
         }
         if (method === "open_channel" && isRecord(result)) {
           const tempId =
@@ -142,69 +155,21 @@ export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
           <div className="pmt-step-info">
             <h2 className="pmt-step-title">Open a Channel</h2>
             <p className="pmt-step-desc">
-              Connect to a peer and lock funds to open a payment channel.
+              After you connect to a peer under <strong>Setup</strong>, lock CKB here to
+              open a payment channel.
             </p>
           </div>
         </div>
 
         <div className="pmt-step-body">
-          {/* 1a: Connect */}
-          <div className="pmt-substep">
-            <span className="pmt-substep-label">1a — Connect to a peer</span>
-            <div className="pmt-relay-buttons">
-              <span className="pmt-relay-prefix">Public relays:</span>
-              {(
-                [
-                  ["Relay 1", nodes.node1],
-                  ["Relay 2", nodes.node2],
-                ] as [string, (typeof nodes)[keyof typeof nodes]][]
-              ).map(([label, node]) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="btn btn-chip"
-                  disabled={anyBusy}
-                  title={node.address || node.pubkey}
-                  onClick={() => {
-                    setOpenPubkey(node.pubkey);
-                    const params = node.address
-                      ? [{ pubkey: node.pubkey, address: node.address }]
-                      : [{ pubkey: node.pubkey }];
-                    void runRpc(`Connect ${label}`, "connect_peer", params);
-                  }}
-                >
-                  {busy(`Connect ${label}`) ? "Connecting…" : label}
-                </button>
-              ))}
-            </div>
-            <div className="inline-field" style={{ marginTop: "0.5rem" }}>
-              <input
-                className="input input-mono"
-                value={customAddress}
-                onChange={(e) => setCustomAddress(e.target.value)}
-                placeholder="/ip4/… multiaddr or pubkey hex"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={anyBusy || !customAddress.trim()}
-                onClick={() => {
-                  const val = customAddress.trim();
-                  const params = val.startsWith("/")
-                    ? [{ address: val }]
-                    : [{ pubkey: val }];
-                  void runRpc("Connect peer", "connect_peer", params);
-                }}
-              >
-                {busy("Connect peer") ? "Connecting…" : "Connect"}
-              </button>
-            </div>
-          </div>
+          <p className="field-hint" style={{ marginBottom: "0.85rem" }}>
+            Use <strong>Setup → Connect to a peer</strong> first so the handshake completes
+            before you open a channel.
+          </p>
 
-          {/* 1b: Fund channel */}
+          {/* Fund channel */}
           <div className="pmt-substep">
-            <span className="pmt-substep-label">1b — Fund a channel</span>
+            <span className="pmt-substep-label">Peer pubkey & funding</span>
             <div className="field">
               <label className="field-label" htmlFor="open-pubkey">
                 Peer pubkey
@@ -214,53 +179,58 @@ export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
                 className="input input-mono"
                 value={openPubkey}
                 onChange={(e) => setOpenPubkey(e.target.value)}
-                placeholder="02… (auto-filled when you click a relay above)"
+                placeholder="02… (same pubkey you connected to in Setup)"
                 spellCheck={false}
               />
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="open-funding">
-                Funding amount (hex shannons — 1 CKB = 100,000,000)
+              <label className="field-label" htmlFor="open-funding-ckb">
+                Funding amount (CKB)
               </label>
-              <div className="amount-preset-row">
-                {CHANNEL_PRESETS.map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setOpenFunding(p.value)}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
               <div className="inline-field">
                 <input
-                  id="open-funding"
-                  className="input input-mono"
-                  value={openFunding}
-                  onChange={(e) => setOpenFunding(e.target.value)}
+                  id="open-funding-ckb"
+                  className="input"
+                  inputMode="decimal"
+                  value={fundingCkb}
+                  onChange={(e) => setFundingCkb(e.target.value)}
+                  placeholder="e.g. 500 or 400.25"
                   spellCheck={false}
+                  aria-describedby="open-funding-hint"
                 />
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={anyBusy || !openPubkey.trim()}
-                  onClick={() =>
+                  disabled={
+                    anyBusy ||
+                    !openPubkey.trim() ||
+                    ckbAmountToFundingHex(fundingCkb) === null
+                  }
+                  onClick={() => {
+                    const fundingHex = ckbAmountToFundingHex(fundingCkb);
+                    if (!fundingHex) return;
                     void runRpc("Open channel", "open_channel", [
                       {
                         pubkey: openPubkey.trim(),
-                        funding_amount: openFunding.trim(),
+                        funding_amount: fundingHex,
                         public: true,
                       },
-                    ])
-                  }
+                    ]);
+                  }}
                 >
                   {busy("Open channel") ? "Opening…" : "Open Channel"}
                 </button>
               </div>
-              <p className="field-hint">
-                Testnet public relays require ≥ 500 CKB. Connect first (step 1a), then open.
+              <p id="open-funding-hint" className="field-hint">
+                Enter CKB to lock in the channel (up to 8 decimal places). Many peers
+                require hundreds of CKB for auto-accept — check their minimum. Sent to
+                RPC as shannons hex:{" "}
+                <code className="code-pill">
+                  {ckbAmountToFundingHex(fundingCkb) ?? "—"}
+                </code>
+                {fundingCkb.trim() && ckbAmountToFundingHex(fundingCkb) === null ? (
+                  <span className="field-hint-warn"> (fix the amount)</span>
+                ) : null}
               </p>
             </div>
 
@@ -301,14 +271,23 @@ export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
         </div>
 
         <div className="pmt-step-body">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={anyBusy}
-            onClick={() => void runRpc("My channels", "list_channels", [{}])}
-          >
-            {busy("My channels") ? "Loading…" : "Refresh Channels"}
-          </button>
+          <div className="pmt-refresh-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={anyBusy}
+              onClick={() => void runRpc("My channels", "list_channels", [{}])}
+            >
+              {busy("My channels") ? "Loading…" : "Refresh Channels"}
+            </button>
+            {channelsLastFetched && !busy("My channels") && (
+              <span className="pmt-refresh-stamp">
+                {channelsFetchedCount === 0
+                  ? `Refreshed at ${channelsLastFetched.toLocaleTimeString()} — 0 channels found`
+                  : `Refreshed at ${channelsLastFetched.toLocaleTimeString()} — ${channelsFetchedCount} channel${channelsFetchedCount === 1 ? "" : "s"}`}
+              </span>
+            )}
+          </div>
 
           {channels.length > 0 ? (
             <div className="data-table-wrap pmt-channel-table">
@@ -387,7 +366,9 @@ export function PaymentsTab({ netId, callFiberRpc }: PaymentsTabProps) {
             </div>
           ) : (
             <p className="network-empty-hint pmt-empty-hint">
-              No channels loaded yet — click Refresh Channels.
+              {channelsLastFetched
+                ? "No channels returned — the channel may still be awaiting on-chain confirmation. Keep refreshing."
+                : "No channels loaded yet — click Refresh Channels."}
             </p>
           )}
         </div>

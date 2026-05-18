@@ -485,6 +485,11 @@ export function GuidedSetupModal({
                   app also scans every few seconds.
                 </p>
               )}
+              <p className="guided-note">
+                After the node is running, open <strong>Setup</strong> and use{" "}
+                <strong>Connect to a peer</strong> before opening channels on the{" "}
+                <strong>Channels</strong> tab.
+              </p>
               <p className="guided-lead">
                 If something fails, open the <strong>Node</strong> tab and read the
                 log messages (colors are stripped for readability).

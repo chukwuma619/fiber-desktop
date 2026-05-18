@@ -14,9 +14,10 @@ export type HistoryItem = {
 export type UseRpcOptions = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
   onResult?: (method: string, result: unknown) => void;
+  onError?: (method: string, message: string) => void;
 };
 
-export function useRpc({ callFiberRpc, onResult }: UseRpcOptions) {
+export function useRpc({ callFiberRpc, onResult, onError }: UseRpcOptions) {
   const [rpcBusy, setRpcBusy] = useState<string | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -52,6 +53,7 @@ export function useRpc({ callFiberRpc, onResult }: UseRpcOptions) {
         const msg = String(e);
         setRpcError(msg);
         setRawJson(msg);
+        onError?.(method, msg);
         pushHistory({
           label,
           ok: false,
@@ -62,7 +64,7 @@ export function useRpc({ callFiberRpc, onResult }: UseRpcOptions) {
         setRpcBusy(null);
       }
     },
-    [callFiberRpc, onResult, pushHistory],
+    [callFiberRpc, onResult, onError, pushHistory],
   );
 
   const busy = (label: string) => rpcBusy === label;

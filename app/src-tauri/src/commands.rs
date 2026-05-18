@@ -162,6 +162,14 @@ pub fn apply_ckb_rpc_to_config_file(app: tauri::AppHandle) -> Result<(), String>
     config_sync::read_and_patch_config(Path::new(&s.fnn_config_path), url)
 }
 
+/// Sets `fiber.bootnode_addrs` to `[]` in the configured `config.yml` so fnn does not
+/// auto-dial upstream public relays. Restart fnn to apply.
+#[tauri::command]
+pub fn clear_config_bootnodes(app: tauri::AppHandle) -> Result<(), String> {
+    let s = settings::load_or_default(&app)?;
+    config_sync::clear_bootnodes_in_config_file(Path::new(&s.fnn_config_path))
+}
+
 #[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
     settings::load_or_default(&app)

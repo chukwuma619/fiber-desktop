@@ -7,11 +7,12 @@ import { NetworkTab } from "./components/NetworkTab";
 import { PaymentsTab } from "./components/PaymentsTab";
 import { ReceiveTab } from "./components/ReceiveTab";
 import { SendTab } from "./components/SendTab";
+import { SetupConnectPeerPanel } from "./components/SetupConnectPeerPanel";
 import {
   GUIDED_SETUP_COMPLETE,
   GUIDED_SETUP_DISMISSED,
 } from "./constants/storageKeys";
-import { PUBLIC_NODE_PUBKEYS, type NetworkId } from "./lib/publicNodes";
+import type { NetworkId } from "./lib/publicNodes";
 import type {
   AppSettings,
   CkbKeyStatus,
@@ -499,8 +500,6 @@ function App() {
   const netId: NetworkId =
     settings?.network === "mainnet" ? "mainnet" : "testnet";
 
-  const nodeKeys = PUBLIC_NODE_PUBKEYS[netId];
-
   const programReady = Boolean(fnnBinaryStatus?.executableReady);
 
   const canContinuePasswordStep =
@@ -838,6 +837,11 @@ function App() {
                       tab first.
                     </span>
                   </div>
+
+                  <SetupConnectPeerPanel
+                    rpcReachable={rpcReachable}
+                    callFiberRpc={rpc}
+                  />
 
                   <details className="setup-advanced">
                     <summary>All settings (folders, URLs, downloads)</summary>
@@ -1247,10 +1251,7 @@ function App() {
           )}
 
           {tab === "payments" && (
-            <PaymentsTab
-              netId={netId}
-              callFiberRpc={rpc}
-            />
+            <PaymentsTab callFiberRpc={rpc} />
           )}
 
           {tab === "receive" && (
@@ -1267,11 +1268,7 @@ function App() {
           )}
 
           {tab === "network" && (
-            <NetworkTab
-              netId={netId}
-              nodeKeys={nodeKeys}
-              callFiberRpc={rpc}
-            />
+            <NetworkTab callFiberRpc={rpc} />
           )}
         </main>
       </div>

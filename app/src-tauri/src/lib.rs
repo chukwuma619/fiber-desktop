@@ -40,6 +40,7 @@ pub fn run() {
             commands::pinned_fnn_info,
             commands::download_pinned_fnn,
             commands::install_upstream_fnn_config,
+            commands::clear_config_bootnodes,
             commands::apply_ckb_rpc_to_config_file,
             commands::fnn_binary_status,
             commands::prepare_ckb_key_folder,
