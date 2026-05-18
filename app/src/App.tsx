@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
 import { NetworkTab } from "./components/NetworkTab";
 import { PaymentsTab } from "./components/PaymentsTab";
+import { ReceiveTab } from "./components/ReceiveTab";
+import { SendTab } from "./components/SendTab";
 import {
   GUIDED_SETUP_COMPLETE,
   GUIDED_SETUP_DISMISSED,
@@ -38,8 +40,18 @@ const TABS = [
   { id: "node" as const, label: "Node", hint: "Start, stop, and logs" },
   {
     id: "payments" as const,
-    label: "Payments",
-    hint: "Channels, invoices, and sends",
+    label: "Channels",
+    hint: "Open, manage, and close channels",
+  },
+  {
+    id: "receive" as const,
+    label: "Receive",
+    hint: "Generate an invoice to get paid",
+  },
+  {
+    id: "send" as const,
+    label: "Send",
+    hint: "Pay an invoice from another node",
   },
   {
     id: "network" as const,
@@ -1229,6 +1241,19 @@ function App() {
           {tab === "payments" && (
             <PaymentsTab
               netId={netId}
+              callFiberRpc={rpc}
+            />
+          )}
+
+          {tab === "receive" && (
+            <ReceiveTab
+              netId={netId}
+              callFiberRpc={rpc}
+            />
+          )}
+
+          {tab === "send" && (
+            <SendTab
               callFiberRpc={rpc}
             />
           )}
