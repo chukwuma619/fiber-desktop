@@ -7,7 +7,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TAG="v0.8.1"
 BIN_DIR="$ROOT/src-tauri/binaries"
 mkdir -p "$BIN_DIR"
-TRIPLE=$(rustc --print host-tuple)
+TRIPLE="${FIBER_DESKTOP_TARGET_TRIPLE:-${TAURI_TARGET_TRIPLE:-${TARGET:-}}}"
+if [[ -z "$TRIPLE" ]]; then
+  TRIPLE=$(rustc --print host-tuple)
+fi
 STAMP_FILE="$BIN_DIR/.fnn-pinned-tag"
 
 OUT_NAME="fnn-$TRIPLE"

@@ -304,9 +304,9 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {channels.map((row) => (
+                  {channels.map((row, index) => (
                     <tr
-                      key={row.channelId || row.peerPubkey}
+                      key={`${row.channelId || "no-channel"}-${row.peerPubkey || "no-peer"}-${index}`}
                       className={
                         closeChannelId === row.channelId
                           ? "pmt-row-selected"

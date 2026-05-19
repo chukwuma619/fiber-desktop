@@ -2,28 +2,57 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::thread;
+use std::time::{Duration, Instant};
 
 const LOG_CAP: usize = 800;
 
-/// Remove common ANSI CSI color sequences so logs are readable in the UI textarea.
+/// Remove common ANSI escape sequences so logs are readable in the UI textarea.
 fn strip_ansi_escapes(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut it = s.chars().peekable();
     while let Some(c) = it.next() {
-        if c == '\u{1b}' && it.peek() == Some(&'[') {
-            it.next();
-            for x in it.by_ref() {
-                let code = x as u32;
-                if (0x40..=0x7e).contains(&code) {
-                    break;
+        if c != '\u{1b}' {
+            out.push(c);
+            continue;
+        }
+
+        match it.next() {
+            // CSI: ESC [ ... final-byte
+            Some('[') => {
+                for x in it.by_ref() {
+                    let code = x as u32;
+                    if (0x40..=0x7e).contains(&code) {
+                        break;
+                    }
                 }
             }
-        } else {
-            out.push(c);
+            // OSC: ESC ] ... BEL or ST
+            Some(']') => {
+                let mut saw_esc = false;
+                for x in it.by_ref() {
+                    if x == '\u{7}' || (saw_esc && x == '\\') {
+                        break;
+                    }
+                    saw_esc = x == '\u{1b}';
+                }
+            }
+            // DCS/PM/APC: ESC P/^/_ ... ST
+            Some('P' | '^' | '_') => {
+                let mut saw_esc = false;
+                for x in it.by_ref() {
+                    if saw_esc && x == '\\' {
+                        break;
+                    }
+                    saw_esc = x == '\u{1b}';
+                }
+            }
+            // Single-character escape sequence.
+            Some(_) => {}
+            None => {}
         }
     }
     out
@@ -33,16 +62,24 @@ fn strip_ansi_escapes(s: &str) -> String {
 fn pid_is_alive(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
     {
-        Path::new(&format!("/proc/{pid}")).exists()
+        let proc_dir = Path::new("/proc").join(pid.to_string());
+        if !proc_dir.exists() {
+            return false;
+        }
+        if let Ok(stat) = std::fs::read_to_string(proc_dir.join("stat")) {
+            if let Some((_, rest)) = stat.rsplit_once(") ") {
+                return rest.chars().next() != Some('Z');
+            }
+        }
+        true
     }
     #[cfg(target_os = "macos")]
     {
         Command::new("ps")
-            .args(["-p", &pid.to_string()])
-            .stdout(Stdio::null())
+            .args(["-o", "stat=", "-p", &pid.to_string()])
             .stderr(Stdio::null())
-            .status()
-            .map(|s| s.success())
+            .output()
+            .map(|o| o.status.success() && !String::from_utf8_lossy(&o.stdout).contains('Z'))
             .unwrap_or(false)
     }
     #[cfg(windows)]
@@ -74,13 +111,17 @@ fn kill_pid(pid: u32) {
             .stderr(Stdio::null())
             .status();
         // Give the process a moment to exit cleanly before forcing.
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(500));
         if pid_is_alive(pid) {
             let _ = Command::new("/bin/kill")
                 .args(["-9", &pid.to_string()])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status();
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while pid_is_alive(pid) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(100));
         }
     }
     #[cfg(windows)]
@@ -111,6 +152,7 @@ pub struct FnnStatusPayload {
 
 pub struct FnnRuntime {
     child: Mutex<Option<FnnSlot>>,
+    pid_file: Mutex<Option<PathBuf>>,
     logs: Arc<Mutex<VecDeque<String>>>,
 }
 
@@ -118,6 +160,7 @@ impl FnnRuntime {
     pub fn new() -> Self {
         Self {
             child: Mutex::new(None),
+            pid_file: Mutex::new(None),
             logs: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
@@ -253,6 +296,14 @@ impl FnnRuntime {
             None => {}
         }
         Ok(())
+    }
+
+    pub fn remember_pid_file(&self, path: PathBuf) {
+        *self.pid_file.lock() = Some(path);
+    }
+
+    pub fn take_pid_file(&self) -> Option<PathBuf> {
+        self.pid_file.lock().take()
     }
 
     pub fn status_payload(&self) -> FnnStatusPayload {
