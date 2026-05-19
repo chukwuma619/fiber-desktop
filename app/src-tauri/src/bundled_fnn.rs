@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
-fn sidecar_file_name() -> String {
+fn target_triple_sidecar_file_name() -> String {
     let triple = env!("FIBER_DESKTOP_TARGET_TRIPLE");
     if cfg!(windows) {
         format!("fnn-{triple}.exe")
@@ -14,21 +14,28 @@ fn sidecar_file_name() -> String {
 }
 
 pub fn bundled_executable_path(app: &tauri::AppHandle) -> Option<PathBuf> {
-    let name = sidecar_file_name();
+    let names = [
+        fnn_exe_name().to_string(),
+        target_triple_sidecar_file_name(),
+    ];
 
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            let p = parent.join(&name);
-            if p.is_file() {
-                return Some(p);
+            for name in &names {
+                let p = parent.join(name);
+                if p.is_file() {
+                    return Some(p);
+                }
             }
         }
     }
 
     if let Ok(dir) = app.path().resource_dir() {
-        let p = dir.join(&name);
-        if p.is_file() {
-            return Some(p);
+        for name in &names {
+            let p = dir.join(name);
+            if p.is_file() {
+                return Some(p);
+            }
         }
     }
 
