@@ -68,7 +68,7 @@ fn pid_is_alive(pid: u32) -> bool {
         }
         if let Ok(stat) = std::fs::read_to_string(proc_dir.join("stat")) {
             if let Some((_, rest)) = stat.rsplit_once(") ") {
-                return rest.chars().next() != Some('Z');
+                return !rest.starts_with('Z');
             }
         }
         true
@@ -210,18 +210,14 @@ impl FnnRuntime {
     ) -> Result<u32, String> {
         {
             let mut slot = self.child.lock();
-            match &mut *slot {
-                Some(FnnSlot::Owned(ref mut ch)) => {
-                    if ch.try_wait().map_err(|e| e.to_string())?.is_none() {
-                        return Err("FNN is already running".to_string());
-                    }
+            if let Some(FnnSlot::Owned(ch)) = &mut *slot {
+                if ch.try_wait().map_err(|e| e.to_string())?.is_none() {
+                    return Err("FNN is already running".to_string());
                 }
-                Some(FnnSlot::Adopted(pid)) => {
-                    if pid_is_alive(*pid) {
-                        return Err("FNN is already running".to_string());
-                    }
+            } else if let Some(FnnSlot::Adopted(pid)) = &*slot {
+                if pid_is_alive(*pid) {
+                    return Err("FNN is already running".to_string());
                 }
-                None => {}
             }
             *slot = None;
         }
