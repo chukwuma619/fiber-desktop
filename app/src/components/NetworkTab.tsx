@@ -166,8 +166,10 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
                 </tr>
               </thead>
               <tbody>
-                {channels.map((row) => (
-                  <tr key={row.channelId || row.peerPubkey + row.stateLabel}>
+                {channels.map((row, index) => (
+                  <tr
+                    key={`${row.channelId || "no-channel"}-${row.peerPubkey || "no-peer"}-${row.stateLabel}-${index}`}
+                  >
                     <td className="data-table-mono" title={row.peerPubkey}>
                       {row.peerDisplay}
                     </td>

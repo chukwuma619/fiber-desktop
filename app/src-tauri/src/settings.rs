@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
+const MAINNET_CKB_RPC_URL: &str = "https://mainnet.ckbapp.dev/";
+const TESTNET_CKB_RPC_URL: &str = "https://testnet.ckbapp.dev/";
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Network {
@@ -39,15 +42,18 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub fn apply_network_defaults(&mut self) {
+        let current = self.ckb_rpc_url.trim().trim_end_matches('/');
+        let mainnet_default = MAINNET_CKB_RPC_URL.trim_end_matches('/');
+        let testnet_default = TESTNET_CKB_RPC_URL.trim_end_matches('/');
         match self.network {
             Network::Mainnet => {
-                if self.ckb_rpc_url.contains("testnet") {
-                    self.ckb_rpc_url = "https://mainnet.ckbapp.dev/".to_string();
+                if current == testnet_default {
+                    self.ckb_rpc_url = MAINNET_CKB_RPC_URL.to_string();
                 }
             }
             Network::Testnet => {
-                if self.ckb_rpc_url.contains("mainnet") && !self.ckb_rpc_url.contains("testnet") {
-                    self.ckb_rpc_url = "https://testnet.ckbapp.dev/".to_string();
+                if current == mainnet_default {
+                    self.ckb_rpc_url = TESTNET_CKB_RPC_URL.to_string();
                 }
             }
         }

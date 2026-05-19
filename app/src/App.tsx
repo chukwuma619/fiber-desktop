@@ -174,7 +174,15 @@ function App() {
     readGuidanceComplete(),
   );
   const [ckbKeyStatus, setCkbKeyStatus] = useState<CkbKeyStatus | null>(null);
+  const appMounted = useRef(false);
   const guidedAutoOpened = useRef(false);
+
+  useEffect(() => {
+    appMounted.current = true;
+    return () => {
+      appMounted.current = false;
+    };
+  }, []);
 
   const refreshSettings = useCallback(async () => {
     try {
@@ -204,20 +212,27 @@ function App() {
 
   const refreshNodeRuntime = useCallback(async () => {
     try {
-      setFnnStatus(await invoke<FnnStatusView>("fnn_status"));
-      setFnnLogs(await invoke<string[]>("fnn_logs", { maxLines: 200 }));
+      const nextStatus = await invoke<FnnStatusView>("fnn_status");
+      const nextLogs = await invoke<string[]>("fnn_logs", { maxLines: 200 });
+      if (!appMounted.current) return;
+      setFnnStatus(nextStatus);
+      setFnnLogs(nextLogs);
     } catch {
+      if (!appMounted.current) return;
       setFnnStatus(null);
     }
     const url = settings?.fnnRpcUrl?.trim();
     if (!url) {
+      if (!appMounted.current) return;
       setRpcReachable(false);
       return;
     }
     try {
       await rpc("node_info", []);
+      if (!appMounted.current) return;
       setRpcReachable(true);
     } catch {
+      if (!appMounted.current) return;
       setRpcReachable(false);
     }
   }, [settings?.fnnRpcUrl]);
@@ -266,6 +281,7 @@ function App() {
   }, [refreshCkbKeyStatus]);
 
   useEffect(() => {
+    let cancelled = false;
     // Before the first status poll, try to adopt any fnn process that was left
     // running from a previous session. This prevents a "stopped" flash and the
     // "data folder already in use" error when the user tries to start a node
@@ -273,10 +289,14 @@ function App() {
     invoke("fnn_adopt_orphan")
       .catch(() => {})
       .finally(() => {
+        if (cancelled) return;
         void refreshNodeRuntime();
       });
     const t = window.setInterval(() => void refreshNodeRuntime(), 1500);
-    return () => window.clearInterval(t);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
   }, [refreshNodeRuntime]);
 
   useEffect(() => {
@@ -417,21 +437,22 @@ function App() {
     setToolsBusy("dl");
     setDownloadProgress(null);
     setLoadError(null);
-    const unlisten = await listen<{
-      downloaded: number;
-      total: number | null;
-      phase: "downloading" | "extracting";
-    }>("fnn-download-progress", (event) => {
-      setDownloadProgress(event.payload);
-    });
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await listen<{
+        downloaded: number;
+        total: number | null;
+        phase: "downloading" | "extracting";
+      }>("fnn-download-progress", (event) => {
+        setDownloadProgress(event.payload);
+      });
       await invoke<string>("download_pinned_fnn");
       await refreshSettings();
       await refreshFnnBinaryStatus();
     } catch (e) {
       setLoadError(String(e));
     } finally {
-      unlisten();
+      unlisten?.();
       setDownloadProgress(null);
       setToolsBusy(null);
     }

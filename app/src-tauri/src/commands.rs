@@ -14,6 +14,17 @@ fn fnn_pid_file(data_dir: &str) -> PathBuf {
     Path::new(data_dir).join("fiber-desktop.pid")
 }
 
+fn remove_pid_files(paths: impl IntoIterator<Item = PathBuf>) {
+    let mut seen = Vec::new();
+    for path in paths {
+        if seen.iter().any(|p: &PathBuf| p == &path) {
+            continue;
+        }
+        let _ = std::fs::remove_file(&path);
+        seen.push(path);
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PinnedFnnInfo {
@@ -208,16 +219,20 @@ pub fn fnn_start(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Re
         &settings.fnn_data_dir,
         &password,
     )?;
-    let _ = std::fs::write(fnn_pid_file(&settings.fnn_data_dir), pid.to_string());
+    let pid_file = fnn_pid_file(&settings.fnn_data_dir);
+    let _ = std::fs::write(&pid_file, pid.to_string());
+    runtime.remember_pid_file(pid_file);
     Ok(pid)
 }
 
 #[tauri::command]
 pub fn fnn_stop(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Result<(), String> {
+    let remembered_pid_file = runtime.take_pid_file();
+    let settings_pid_file = settings::load_or_default(&app)
+        .ok()
+        .map(|settings| fnn_pid_file(&settings.fnn_data_dir));
     let result = runtime.stop();
-    if let Ok(settings) = settings::load_or_default(&app) {
-        let _ = std::fs::remove_file(fnn_pid_file(&settings.fnn_data_dir));
-    }
+    remove_pid_files(remembered_pid_file.into_iter().chain(settings_pid_file));
     result
 }
 
@@ -243,6 +258,7 @@ pub fn fnn_adopt_orphan(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>
         }
     };
     if runtime.adopt(pid) {
+        runtime.remember_pid_file(pid_file);
         true
     } else {
         // Stale PID file – process is no longer alive.
