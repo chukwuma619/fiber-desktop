@@ -4,19 +4,80 @@ Desktop shell for [Fiber Network Node (fnn)](https://github.com/nervosnetwork/fi
 
 ## Prerequisites
 
-Install these once on your machine:
+Install everything below before cloning. All platforms need the same core tools; each OS also has extra packages for Tauri and for the fnn sidecar download script.
+
+### All platforms
 
 | Requirement | Notes |
 |-------------|--------|
-| [Bun](https://bun.sh/) | This repo uses `bun.lock`; install Bun and use `bun` for all scripts below. |
-| [Rust](https://www.rust-lang.org/tools/install) | Stable toolchain; required for `rustc` (used when preparing the fnn binary) and for Tauri. |
-| [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) | OS-specific packages (WebKit, MSVC build tools on Windows, etc.). |
+| [Bun](https://bun.sh/) | This repo uses `bun.lock`; use `bun` for all scripts below. |
+| [Rust](https://www.rust-lang.org/tools/install) | Stable toolchain (`rustc`, `cargo`). Required for Tauri and for `prepare:fnn` (detects your host triple). After install, **restart your terminal** so `cargo` is on `PATH`. |
+| [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) | OS-specific build tools and WebView runtimes — follow the guide for your OS. |
 
-**Windows:** The fnn sidecar script is a Bash script. Use **Git Bash**, **MSYS2**, or **WSL** so `bash` is available, or run commands from an environment where Bun can invoke Bash.
+The fnn sidecar is downloaded by a Bash script (`scripts/prepare-fnn-sidecar.sh`). It also needs **`curl`** and **`tar`** on your `PATH` (included with Git Bash on Windows; usually present on macOS and Linux).
 
-## Quick start
+### macOS
 
-From the repository root:
+1. Install [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/) (`xcode-select --install`).
+2. Install Bun and Rust (links above).
+3. Use **Terminal**, **iTerm**, or your IDE’s integrated terminal.
+
+Verify:
+
+```bash
+bun --version
+rustc --version
+cargo --version
+bash --version
+```
+
+### Linux
+
+1. Install Bun and Rust (links above).
+2. Install your distro’s Tauri dependencies — see [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux) (WebKitGTK, build essentials, etc.).
+
+Verify:
+
+```bash
+bun --version
+rustc --version
+cargo --version
+bash --version
+```
+
+### Windows
+
+Windows needs a few extra steps. **Do not use plain PowerShell or CMD** for `bun run setup` or `bun run tauri dev` unless `bash` resolves to a real Bash shell (see below).
+
+1. **[Git for Windows](https://git-scm.com/download/win)** — provides **Git Bash**, which includes `bash`, `curl`, and `tar`. This is the recommended way to run this project on Windows.
+2. **[Rust](https://rustup.rs/)** — choose the default **MSVC** toolchain (`x86_64-pc-windows-msvc`).
+3. **[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)** — install the **“Desktop development with C++”** workload (required by Tauri). See [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows).
+4. **WebView2** — usually already installed on Windows 10/11; install the [Evergreen Bootstrapper](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if the app window fails to open.
+
+Open **Git Bash** (Start menu → “Git Bash”), then verify:
+
+```bash
+bun --version
+rustc --version
+cargo --version
+bash --version
+curl --version
+```
+
+**Important:** If PowerShell runs `bash` and you see *“Windows Subsystem for Linux has no installed distributions”*, Windows is using the WSL stub instead of Git Bash. Either run all commands from **Git Bash**, or install a WSL distro (`wsl --install -d Ubuntu`). Git Bash is simpler for this repo.
+
+In VS Code, set the default terminal to Git Bash: **Terminal → Select Default Profile → Git Bash**.
+
+## Getting started
+
+Clone the repo, install prerequisites for your OS (above), then run setup and dev from the **`app/`** directory.
+
+```bash
+git clone https://github.com/chukwuma619/fiber-desktop.git
+cd fiber-desktop/app
+```
+
+**Windows:** open **Git Bash** before continuing.
 
 ```bash
 bun run setup
@@ -61,6 +122,8 @@ If the key is missing, **Start** will show a clear error instead of a Rust panic
 ## Troubleshooting
 
 - **macOS keychain keeps asking for your login password** — If you click **Allow**, macOS may ask again the next time the app needs to read the stored secret (for example when you **Start** the node). Choose **Always Allow** so you are not prompted every time. The app also avoids decrypting the secret just to show “password saved” in the UI (that pattern could trigger repeated prompts on macOS).
+- **`cargo metadata` / `program not found` when running `bun run tauri dev`** — Rust is not installed or not on `PATH`. Install [Rust](https://rustup.rs/), restart your terminal, and confirm `cargo --version` works before retrying.
+- **`Windows Subsystem for Linux has no installed distributions` (Windows)** — PowerShell is invoking WSL’s `bash` stub, not Git Bash. Run `bun run setup` and `bun run tauri dev` from **Git Bash**, or install WSL. See [Windows prerequisites](#windows) above.
 - **`prepare:fnn` fails with “rustc: command not found”** — Install Rust and ensure `rustc` is on your `PATH`, then run `bun run setup` again.
 - **Download errors for fnn** — Check firewall/VPN and that [Fiber releases](https://github.com/nervosnetwork/fiber/releases) are reachable.
 - **Port 1420 in use** — Another process is using Vite’s port; stop it or adjust [`vite.config.ts`](vite.config.ts) and [`tauri.conf.json`](src-tauri/tauri.conf.json) together.
