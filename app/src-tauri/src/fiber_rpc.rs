@@ -1,4 +1,7 @@
 use serde_json::{json, Value};
+use std::time::Duration;
+
+const RPC_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub fn call(rpc_url: &str, method: &str, params: Value) -> Result<Value, String> {
     let id = std::time::SystemTime::now()
@@ -15,6 +18,7 @@ pub fn call(rpc_url: &str, method: &str, params: Value) -> Result<Value, String>
 
     let resp: Value = ureq::post(rpc_url.trim_end_matches('/'))
         .set("Content-Type", "application/json")
+        .timeout(RPC_TIMEOUT)
         .send_json(body)
         .map_err(|e| format!("RPC transport error: {e}"))?
         .into_json()

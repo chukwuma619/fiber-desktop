@@ -7,6 +7,10 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter};
+
+/// Emitted for each new log line while fnn is owned by this app session.
+pub const FNN_LOG_LINE_EVENT: &str = "fnn-log-line";
 
 const LOG_CAP: usize = 800;
 
@@ -150,10 +154,18 @@ pub struct FnnStatusPayload {
     pub exit_code: Option<i32>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FnnRuntimeSnapshot {
+    pub status: FnnStatusPayload,
+    pub logs: Vec<String>,
+}
+
 pub struct FnnRuntime {
     child: Mutex<Option<FnnSlot>>,
     pid_file: Mutex<Option<PathBuf>>,
     logs: Arc<Mutex<VecDeque<String>>>,
+    app: Mutex<Option<AppHandle>>,
 }
 
 impl FnnRuntime {
@@ -162,15 +174,29 @@ impl FnnRuntime {
             child: Mutex::new(None),
             pid_file: Mutex::new(None),
             logs: Arc::new(Mutex::new(VecDeque::new())),
+            app: Mutex::new(None),
         }
     }
 
-    fn push_line(logs: &Arc<Mutex<VecDeque<String>>>, line: String) {
-        let mut g = logs.lock();
-        if g.len() >= LOG_CAP {
-            g.pop_front();
+    pub fn attach_app(&self, app: AppHandle) {
+        *self.app.lock() = Some(app);
+    }
+
+    fn app_handle(&self) -> Option<AppHandle> {
+        self.app.lock().clone()
+    }
+
+    fn push_line(logs: &Arc<Mutex<VecDeque<String>>>, app: Option<&AppHandle>, line: String) {
+        {
+            let mut g = logs.lock();
+            if g.len() >= LOG_CAP {
+                g.pop_front();
+            }
+            g.push_back(line.clone());
         }
-        g.push_back(line);
+        if let Some(app) = app {
+            let _ = app.emit(FNN_LOG_LINE_EVENT, line);
+        }
     }
 
     /// Try to adopt an orphaned fnn process from a previous session.
@@ -189,13 +215,19 @@ impl FnnRuntime {
         {
             let mut g = self.logs.lock();
             g.clear();
-            g.push_back(format!(
-                "[fiber-desktop] Reconnected to running fnn process (PID {pid})."
-            ));
-            g.push_back(
-                "[fiber-desktop] Logs from before this session are not available.".to_string(),
-            );
         }
+        let app = self.app_handle();
+        let logs = self.logs.clone();
+        Self::push_line(
+            &logs,
+            app.as_ref(),
+            format!("[fiber-desktop] Reconnected to running fnn process (PID {pid})."),
+        );
+        Self::push_line(
+            &logs,
+            app.as_ref(),
+            "[fiber-desktop] Logs from before this session are not available.".to_string(),
+        );
         *slot = Some(FnnSlot::Adopted(pid));
         true
     }
@@ -203,6 +235,7 @@ impl FnnRuntime {
     /// Spawn fnn. Does not log the password.
     pub fn start(
         &self,
+        app: &AppHandle,
         binary: &str,
         config: &str,
         data_dir: &str,
@@ -253,13 +286,15 @@ impl FnnRuntime {
 
         let pid = child.id();
 
+        let log_app = app.clone();
         if let Some(out) = child.stdout.take() {
             let logs = self.logs.clone();
+            let emit_app = log_app.clone();
             thread::spawn(move || {
                 let reader = BufReader::new(out);
                 for line in reader.lines().map_while(Result::ok) {
                     let clean = strip_ansi_escapes(&line);
-                    Self::push_line(&logs, format!("[out] {clean}"));
+                    Self::push_line(&logs, Some(&emit_app), format!("[out] {clean}"));
                 }
             });
         }
@@ -269,7 +304,7 @@ impl FnnRuntime {
                 let reader = BufReader::new(err);
                 for line in reader.lines().map_while(Result::ok) {
                     let clean = strip_ansi_escapes(&line);
-                    Self::push_line(&logs, format!("[err] {clean}"));
+                    Self::push_line(&logs, Some(&log_app), format!("[err] {clean}"));
                 }
             });
         }
@@ -355,8 +390,18 @@ impl FnnRuntime {
     }
 
     pub fn logs_tail(&self, max: usize) -> Vec<String> {
+        if max == 0 {
+            return Vec::new();
+        }
         let g = self.logs.lock();
         let skip = g.len().saturating_sub(max);
         g.iter().skip(skip).cloned().collect()
+    }
+
+    pub fn runtime_snapshot(&self, max_log_lines: usize) -> FnnRuntimeSnapshot {
+        FnnRuntimeSnapshot {
+            status: self.status_payload(),
+            logs: self.logs_tail(max_log_lines),
+        }
     }
 }

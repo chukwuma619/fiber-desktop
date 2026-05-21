@@ -2,7 +2,27 @@
 //! See https://v2.tauri.app/develop/sidecar/
 
 use std::path::{Path, PathBuf};
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
+
+/// How the active `fnn` path was chosen (for UI labels).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FnnBinarySource {
+    Bundled,
+    Downloaded,
+    Custom,
+    Unavailable,
+}
+
+impl FnnBinarySource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Bundled => "bundled",
+            Self::Downloaded => "downloaded",
+            Self::Custom => "custom",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
 
 fn target_triple_sidecar_file_name() -> String {
     let triple = env!("FIBER_DESKTOP_TARGET_TRIPLE");
@@ -81,8 +101,38 @@ fn find_on_path(name: &str) -> Option<PathBuf> {
     })
 }
 
+fn tools_install_dir(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_data_dir().ok()?;
+    Some(
+        dir.join("tools")
+            .join(crate::fnn_fetch::PINNED_FNN_TAG.trim_start_matches('v')),
+    )
+}
+
+fn path_under_dir(path: &Path, dir: &Path) -> bool {
+    match (path.canonicalize(), dir.canonicalize()) {
+        (Ok(p), Ok(d)) => p.starts_with(&d),
+        _ => path.starts_with(dir),
+    }
+}
+
+pub fn classify_binary_source(app: &AppHandle, active: &Path) -> FnnBinarySource {
+    if !active.is_file() {
+        return FnnBinarySource::Unavailable;
+    }
+    if is_active_path_bundled(app, active) {
+        return FnnBinarySource::Bundled;
+    }
+    if tools_install_dir(app)
+        .is_some_and(|dir| path_under_dir(active, &dir))
+    {
+        return FnnBinarySource::Downloaded;
+    }
+    FnnBinarySource::Custom
+}
+
 /// Prefer an existing configured path, else bundled sidecar, else `fnn` on `PATH` (Homebrew, etc.).
-pub fn resolve_fnn_binary_path(app: &tauri::AppHandle, configured: &str) -> Option<String> {
+pub fn resolve_fnn_binary_path(app: &AppHandle, configured: &str) -> Option<String> {
     let c = configured.trim();
     if !c.is_empty() && Path::new(c).is_file() {
         return Some(c.to_string());
@@ -93,4 +143,18 @@ pub fn resolve_fnn_binary_path(app: &tauri::AppHandle, configured: &str) -> Opti
         }
     }
     find_on_path(fnn_exe_name()).map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Returns `true` when settings were updated and should be saved.
+pub fn apply_resolved_binary_path(app: &AppHandle, configured: &mut String) -> bool {
+    let previous = configured.clone();
+    let Some(resolved) = resolve_fnn_binary_path(app, configured) else {
+        return false;
+    };
+    let should_replace = previous.trim().is_empty() || !Path::new(previous.trim()).is_file();
+    if should_replace && previous != resolved {
+        *configured = resolved;
+        return true;
+    }
+    false
 }

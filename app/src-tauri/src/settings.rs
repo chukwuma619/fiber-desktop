@@ -179,8 +179,8 @@ pub fn load_or_default(app: &tauri::AppHandle) -> Result<AppSettings, String> {
     normalize_app_settings(app, &mut settings)?;
     ensure_fnn_storage_exists(&settings)?;
 
-    if let Some(p) = crate::bundled_fnn::resolve_fnn_binary_path(app, &settings.fnn_binary_path) {
-        settings.fnn_binary_path = p;
+    if crate::bundled_fnn::apply_resolved_binary_path(app, &mut settings.fnn_binary_path) {
+        save(app, &settings)?;
     }
 
     Ok(settings)

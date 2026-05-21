@@ -27,6 +27,10 @@ pub fn run() {
 
     builder
         .manage(FnnRuntime::new())
+        .setup(|app| {
+            app.state::<FnnRuntime>().attach_app(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
@@ -36,6 +40,7 @@ pub fn run() {
             commands::fnn_stop,
             commands::fnn_status,
             commands::fnn_logs,
+            commands::fnn_runtime_snapshot,
             commands::fiber_rpc_call,
             commands::pinned_fnn_info,
             commands::download_pinned_fnn,
@@ -43,6 +48,7 @@ pub fn run() {
             commands::clear_config_bootnodes,
             commands::apply_ckb_rpc_to_config_file,
             commands::fnn_binary_status,
+            commands::ensure_fnn_binary,
             commands::prepare_ckb_key_folder,
             commands::ckb_key_status,
             commands::write_ckb_private_key,

@@ -3,7 +3,7 @@ use crate::config_sync;
 use crate::fiber_rpc;
 use crate::fnn_fetch;
 use crate::fnn_precheck;
-use crate::fnn_runtime::FnnRuntime;
+use crate::fnn_runtime::{FnnRuntime, FnnRuntimeSnapshot};
 use crate::secret;
 use crate::settings::{self, AppSettings};
 use serde::Serialize;
@@ -53,25 +53,46 @@ pub struct FnnBinaryStatus {
     pub active_path: String,
     /// True when `active_path` points to an existing file (spawnable `fnn`).
     pub executable_ready: bool,
+    /// `bundled` | `downloaded` | `custom` | `unavailable`
+    pub active_source: String,
+}
+
+fn fnn_binary_status_from_settings(
+    app: &tauri::AppHandle,
+    settings: &settings::AppSettings,
+) -> FnnBinaryStatus {
+    let bundled = bundled_fnn::bundled_executable_path(app);
+    let bundled_available = bundled.is_some();
+    let bundled_path = bundled.as_ref().map(|p| p.to_string_lossy().into_owned());
+    let active = Path::new(&settings.fnn_binary_path);
+    let source = bundled_fnn::classify_binary_source(app, active);
+    let is_bundled = source == bundled_fnn::FnnBinarySource::Bundled;
+    let executable_ready = active.is_file();
+    FnnBinaryStatus {
+        pinned_tag: fnn_fetch::PINNED_FNN_TAG.to_string(),
+        bundled_path,
+        is_bundled,
+        bundled_available,
+        active_path: settings.fnn_binary_path.clone(),
+        executable_ready,
+        active_source: source.as_str().to_string(),
+    }
 }
 
 #[tauri::command]
 pub fn fnn_binary_status(app: tauri::AppHandle) -> Result<FnnBinaryStatus, String> {
     let settings = settings::load_or_default(&app)?;
-    let bundled = bundled_fnn::bundled_executable_path(&app);
-    let bundled_available = bundled.is_some();
-    let bundled_path = bundled.as_ref().map(|p| p.to_string_lossy().into_owned());
-    let active = Path::new(&settings.fnn_binary_path);
-    let is_bundled = bundled_fnn::is_active_path_bundled(&app, active);
-    let executable_ready = !settings.fnn_binary_path.trim().is_empty() && active.is_file();
-    Ok(FnnBinaryStatus {
-        pinned_tag: fnn_fetch::PINNED_FNN_TAG.to_string(),
-        bundled_path,
-        is_bundled,
-        bundled_available,
-        active_path: settings.fnn_binary_path,
-        executable_ready,
-    })
+    Ok(fnn_binary_status_from_settings(&app, &settings))
+}
+
+/// Resolves a spawnable fnn path (bundled → downloaded → PATH), persists when the saved path was empty or missing.
+#[tauri::command]
+pub fn ensure_fnn_binary(app: tauri::AppHandle) -> Result<FnnBinaryStatus, String> {
+    let mut settings = settings::load_or_default(&app)?;
+    if bundled_fnn::apply_resolved_binary_path(&app, &mut settings.fnn_binary_path) {
+        settings::save(&app, &settings)?;
+    }
+    Ok(fnn_binary_status_from_settings(&app, &settings))
 }
 
 #[derive(Serialize)]
@@ -214,6 +235,7 @@ pub fn fnn_start(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Re
         "No FNN key password in OS keychain. Save one under Security first.".to_string()
     })?;
     let pid = runtime.start(
+        &app,
         &settings.fnn_binary_path,
         &settings.fnn_config_path,
         &settings.fnn_data_dir,
@@ -275,6 +297,14 @@ pub fn fnn_status(runtime: tauri::State<FnnRuntime>) -> crate::fnn_runtime::FnnS
 #[tauri::command]
 pub fn fnn_logs(runtime: tauri::State<FnnRuntime>, max_lines: Option<usize>) -> Vec<String> {
     runtime.logs_tail(max_lines.unwrap_or(400))
+}
+
+#[tauri::command]
+pub fn fnn_runtime_snapshot(
+    runtime: tauri::State<FnnRuntime>,
+    max_log_lines: Option<usize>,
+) -> FnnRuntimeSnapshot {
+    runtime.runtime_snapshot(max_log_lines.unwrap_or(0))
 }
 
 #[tauri::command]
