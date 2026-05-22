@@ -1,8 +1,9 @@
 [package]
 name = "fiber-desktop"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Desktop shell for the Fiber Network Node (fnn)"
+authors = ["Chukwuma Ebube <chukwuma619@gmail.com>"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
