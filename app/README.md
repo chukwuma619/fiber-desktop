@@ -8,6 +8,7 @@ Built with [Tauri 2](https://v2.tauri.app/), [React](https://react.dev/), and [V
 
 ## Table of contents
 
+- [Before you clone](#before-you-clone)
 - [Requirements](#requirements)
   - [macOS](#macos)
   - [Windows](#windows)
@@ -19,34 +20,68 @@ Built with [Tauri 2](https://v2.tauri.app/), [React](https://react.dev/), and [V
 - [Troubleshooting](#troubleshooting)
 - [Recommended tooling](#recommended-tooling)
 
+## Before you clone
+
+Fiber Desktop is a **[Tauri 2](https://v2.tauri.app/)** desktop app (macOS, Windows, Linux). You do **not** need Android/iOS tooling unless you plan to port the app to mobile.
+
+Install prerequisites in this order (same as the [official Tauri guide](https://v2.tauri.app/start/prerequisites/)):
+
+| Step | What | Why |
+|------|------|-----|
+| 1 | **System dependencies** for your OS | WebView, C++ toolchain, GTK/WebKit on Linux, etc. |
+| 2 | **Rust** (stable, via [rustup](https://rustup.rs/)) | Tauri backend |
+| 3 | **Node.js** **20.19+** or **22.12+** | React + Vite frontend |
+| 4 | **[Bun](https://bun.sh/)** | This repo’s package manager (`bun.lock`) |
+| 5 | **`bash`**, **`curl`**, **`tar`** | Downloads the pinned **fnn** sidecar (`scripts/prepare-fnn-sidecar.sh`) |
+
+After cloning, from the `app/` folder:
+
+```bash
+bun run setup      # bun install + download fnn
+bun run tauri dev  # compile Rust, start UI
+```
+
+**Windows:** use **Git Bash** for those commands, not plain PowerShell/CMD (see [Windows](#windows)).
+
+If anything fails, check [Troubleshooting](#troubleshooting) or the [Tauri prerequisites troubleshooting](https://v2.tauri.app/start/prerequisites/#troubleshooting) section.
+
 ## Requirements
 
-Install the tools for your platform **before** cloning. All commands below are run from the `app/` directory unless noted otherwise.
+Install everything below **before** `bun run setup`. Platform details follow the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) page; this section adds **Fiber Desktop–specific** notes.
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| [Bun](https://bun.sh/) | latest | Package manager and script runner (`bun.lock`) |
-| [Node.js](https://nodejs.org/) | **20.19+** or **22.12+** | Used by Vite 7 when starting the dev server |
-| [Rust](https://www.rust-lang.org/tools/install) | stable | Tauri backend and fnn sidecar setup |
-| [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) | — | OS-specific build tools and WebView runtimes |
-
-The fnn binary is downloaded by a Bash script (`scripts/prepare-fnn-sidecar.sh`), which also needs **`bash`**, **`curl`**, and **`tar`** on your `PATH`.
+| System deps | per OS | [Tauri prerequisites → System Dependencies](https://v2.tauri.app/start/prerequisites/#system-dependencies) |
+| [Rust](https://www.rust-lang.org/tools/install) | stable | Tauri backend |
+| [Node.js](https://nodejs.org/) | **20.19+** or **22.12+** | Vite 7 dev server |
+| [Bun](https://bun.sh/) | latest | `bun install`, scripts |
+| `bash`, `curl`, `tar` | on `PATH` | `prepare:fnn` sidecar download |
 
 ### macOS
 
-1. **Xcode Command Line Tools**
+Follow [Tauri → macOS](https://v2.tauri.app/start/prerequisites/#macos). **Desktop-only** is enough: install **Xcode Command Line Tools** (you do not need the full Xcode app unless you target iOS).
+
+1. **System dependencies (Tauri)**
 
    ```bash
    xcode-select --install
    ```
 
-2. **Bun** — follow the [Bun installation guide](https://bun.sh/docs/installation).
+   Open Xcode once after a full Xcode install so it can finish setup (CLI tools only: skip this).
 
-3. **Node.js** — install **20.19+** or **22.12+** (LTS recommended). [Download](https://nodejs.org/) or use a version manager such as [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm).
+2. **Rust (Tauri)** — [rustup](https://rustup.rs/):
 
-4. **Rust** — install via [rustup](https://rustup.rs/), then restart your terminal.
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
 
-5. **Tauri dependencies** — follow the [macOS prerequisites](https://v2.tauri.app/start/prerequisites/#macos) if you have not built a Tauri app before.
+   Restart the terminal, then `rustc --version`.
+
+3. **Node.js** — **20.19+** or **22.12+** ([nodejs.org](https://nodejs.org/) or nvm/fnm).
+
+4. **Bun** — [Bun installation guide](https://bun.sh/docs/installation).
+
+5. **Fiber Desktop extras** — `bash`, `curl`, and `tar` (included with macOS).
 
 **Verify your setup** (Terminal, iTerm, or your IDE terminal):
 
@@ -60,11 +95,31 @@ bash --version
 
 ### Windows
 
-Use **Git Bash** for all project commands. Plain PowerShell or CMD will fail when the setup script runs `bash`, unless you have configured a working Bash environment.
+Follow [Tauri → Windows](https://v2.tauri.app/start/prerequisites/#windows). Supported: **Windows 7 and later** (WebView2 is preinstalled on Windows 10 1803+).
 
-Install dependencies with [Chocolatey](https://chocolatey.org/) (`choco`, Administrator terminal) and/or [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (PowerShell). Restart your terminal after installing.
+Use **Git Bash** for all Fiber Desktop commands (`bun run setup`, `bun run tauri dev`). PowerShell/CMD will fail when `bash scripts/prepare-fnn-sidecar.sh` runs.
 
-1. **Git for Windows** — Git Bash (`bash`, `curl`, `tar`).
+Install dependencies with [Chocolatey](https://chocolatey.org/) (`choco`, Administrator terminal) and/or [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (PowerShell). Restart Git Bash after installing.
+
+1. **System dependencies (Tauri)**
+
+   - **Microsoft C++ Build Tools** — install [Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and check **Desktop development with C++** (same as Tauri docs).
+   - **WebView2** — usually already installed; if the app window is blank, install the [WebView2 Evergreen Bootstrapper](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+   - **MSI builds only:** enable the **VBSCRIPT** optional Windows feature if `tauri build` fails on MSI ([Tauri note](https://v2.tauri.app/start/prerequisites/#vbscript-for-msi-installers)).
+
+2. **Rust (Tauri)** — MSVC toolchain (`x86_64-pc-windows-msvc`). [rustup](https://rustup.rs/) or:
+
+   ```powershell
+   winget install --id Rustlang.Rustup
+   ```
+
+   Then in a new terminal: `rustup default stable-msvc` and `rustc --version`.
+
+3. **Node.js** — **20.19+** or **22.12+** (see commands below).
+
+4. **Bun** — [Bun installation guide](https://bun.sh/docs/installation) or `choco install bun -y`.
+
+5. **Fiber Desktop extras** — **Git for Windows** (Git Bash provides `bash`, `curl`, `tar`):
 
    ```powershell
    choco install git -y
@@ -74,47 +129,19 @@ Install dependencies with [Chocolatey](https://chocolatey.org/) (`choco`, Admini
    winget install Git.Git --accept-package-agreements --accept-source-agreements
    ```
 
-2. **Bun** — [Bun installation guide](https://bun.sh/docs/installation), or:
+   Optional Chocolatey shortcuts for Tauri system deps:
 
    ```powershell
-   choco install bun -y
-   ```
-
-3. **Node.js** — **20.19+** or **22.12+**.
-
-   ```powershell
+   choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" -y
    choco install nodejs-lts -y
+   choco install microsoft-edge-webview2 -y
    ```
 
    ```powershell
    winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
    ```
 
-   Close and reopen Git Bash after installing, then confirm with `node --version`.
-
-4. **Rust** — default **MSVC** toolchain (`x86_64-pc-windows-msvc`).
-
-   ```powershell
-   choco install rust -y
-   ```
-
-   Or install via [rustup](https://rustup.rs/), then restart your terminal.
-
-5. **Visual Studio Build Tools** — **Desktop development with C++** workload (required by Tauri).
-
-   ```powershell
-   choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" -y
-   ```
-
-   Or use the [Visual Studio Build Tools installer](https://visualstudio.microsoft.com/visual-cpp-build-tools/). See [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows).
-
-6. **WebView2** — included on most Windows 10/11 systems. If the app window does not open:
-
-   ```powershell
-   choco install microsoft-edge-webview2 -y
-   ```
-
-   Or install the [WebView2 Evergreen Bootstrapper](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+   Close and reopen **Git Bash** after installing, then confirm `node --version`.
 
 **Verify your setup** in **Git Bash** (Start menu → Git Bash):
 
@@ -133,24 +160,38 @@ curl --version
 
 ### Linux
 
-Fiber Desktop supports **Linux** the same way as macOS and Windows (Tauri 2 + GTK + WebKitGTK). Use a normal terminal (bash); `prepare:fnn` needs `bash`, `curl`, and `tar`.
+Follow [Tauri → Linux](https://v2.tauri.app/start/prerequisites/#linux). Package names differ by distro; the [Tauri prerequisites page](https://v2.tauri.app/start/prerequisites/#linux) lists Arch, Fedora, openSUSE, Alpine, NixOS, and more.
 
-1. **Bun** — [Bun installation guide](https://bun.sh/docs/installation).
-
-2. **Node.js** — **20.19+** or **22.12+**.
-
-3. **Rust** — [rustup](https://rustup.rs/) stable.
-
-4. **Tauri Linux dependencies** — install the packages for your distro per [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux). On Debian/Ubuntu, the same set as CI:
+1. **System dependencies (Tauri)** — Debian/Ubuntu (matches [official Tauri list](https://v2.tauri.app/start/prerequisites/#linux) plus `patchelf` for bundling in CI):
 
    ```bash
-   sudo apt-get update
-   sudo apt-get install -y \
-     build-essential pkg-config libssl-dev libgtk-3-dev \
-     libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+   sudo apt update
+   sudo apt install -y \
+     libwebkit2gtk-4.1-dev \
+     build-essential \
+     curl \
+     wget \
+     file \
+     libxdo-dev \
+     libssl-dev \
+     libayatana-appindicator3-dev \
+     librsvg2-dev \
+     patchelf
    ```
 
-5. **Secret Service** — passwords are stored via the desktop keyring (GNOME Keyring, KWallet, etc.). Ensure a keyring daemon is running on your session.
+   Other distros: use the exact command for your distribution on the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#linux) page.
+
+2. **Rust (Tauri)** — [rustup](https://rustup.rs/):
+
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+3. **Node.js** — **20.19+** or **22.12+**.
+
+4. **Bun** — [Bun installation guide](https://bun.sh/docs/installation).
+
+5. **Fiber Desktop extras** — `bash`, `curl`, and `tar` (installed with the apt command above). Passwords use the desktop **Secret Service** (GNOME Keyring, KWallet, etc.); ensure a keyring daemon is running in your session.
 
 **Verify:**
 
@@ -163,6 +204,13 @@ bash --version
 
 ## Getting started
 
+### Checklist (after prerequisites)
+
+- [ ] Cloned the repo and `cd fiber-desktop/app`
+- [ ] `bun run setup` finished (fnn sidecar in `src-tauri/binaries/`)
+- [ ] `bun run tauri dev` opens the desktop window
+- [ ] Completed **Guided setup** in the app (or skipped and configured **Setup**)
+
 ### 1. Clone the repository
 
 ```bash
@@ -170,7 +218,7 @@ git clone https://github.com/chukwuma619/fiber-desktop.git
 cd fiber-desktop/app
 ```
 
-On **Windows**, run the following steps in **Git Bash**.
+On **Windows**, use **Git Bash** for every step below.
 
 ### 2. Install dependencies and download fnn
 
@@ -178,7 +226,9 @@ On **Windows**, run the following steps in **Git Bash**.
 bun run setup
 ```
 
-This runs `bun install` and downloads the pinned **fnn** sidecar into `src-tauri/binaries/` (version pinned in [`src-tauri/src/fnn_fetch.rs`](src-tauri/src/fnn_fetch.rs)). Network access to [GitHub releases](https://github.com/nervosnetwork/fiber/releases) is required.
+This runs `bun install` and downloads the pinned **fnn** sidecar into `src-tauri/binaries/` (version in [`src-tauri/src/fnn_fetch.rs`](src-tauri/src/fnn_fetch.rs)). Requires network access to [Fiber GitHub releases](https://github.com/nervosnetwork/fiber/releases).
+
+If this fails, confirm [Requirements](#requirements) (especially Rust on `PATH` and `bash`/`curl`/`tar`).
 
 ### 3. Start the app in development
 
@@ -188,11 +238,13 @@ bun run tauri dev
 
 This will:
 
-1. Ensure the fnn sidecar is present (`prepare:fnn`)
-2. Start the Vite dev server on [http://localhost:1420](http://localhost:1420)
-3. Compile and launch the Tauri desktop window
+1. Run `prepare:fnn` if the sidecar is missing
+2. Start the Vite dev server at [http://localhost:1420](http://localhost:1420)
+3. Compile the Rust backend and open the Tauri window
 
-The first run may take several minutes while Rust dependencies compile.
+The **first** run can take several minutes while Cargo builds dependencies. Later runs are much faster.
+
+**Frontend only** (no desktop shell): `bun run dev` — useful for UI work; node start/stop and keychain features need `tauri dev`.
 
 ## First launch
 
@@ -227,6 +279,8 @@ bun run tauri build
 Installers are written to `src-tauri/target/release/bundle/` (`.dmg` on macOS, `.msi` / `.exe` on Windows, `.AppImage` / `.deb` / `.rpm` on Linux).
 
 ## Troubleshooting
+
+For install issues (WebView2, C++ Build Tools, Linux packages, Rust toolchain), see the official [Tauri prerequisites → Troubleshooting](https://v2.tauri.app/start/prerequisites/#troubleshooting) and [Tauri Discord](https://discord.com/invite/tauri).
 
 ### `cargo metadata` — program not found
 

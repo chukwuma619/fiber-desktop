@@ -18,7 +18,7 @@ bun run setup
 bun run tauri dev
 ```
 
-See [app/README.md](app/README.md) for platform prerequisites (Rust, Git Bash on Windows, Node.js 20.19+, etc.).
+See [app/README.md](app/README.md) for full setup. Install [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS (system deps → Rust → Node.js 20.19+), then Bun and `bun run setup` in `app/`. On Windows, use **Git Bash**.
 
 **Marketing website**
 
