@@ -47,5 +47,5 @@ Run this once per release (or after large Windows-related changes) on a Windows 
 
 ## Notes for developers without a Windows PC
 
-- **clippy-windows** and **bundle-windows** jobs in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) compile and build all `#[cfg(windows)]` code on every app change.
+- **clippy-windows** and **bundle-windows** jobs in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) compile and build all `#[cfg(windows)]` code on every app change (`clippy-windows` uses `app/src-tauri`).
 - Fix failures from those jobs before relying on a manual VM pass.

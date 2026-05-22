@@ -6,11 +6,12 @@ Tauri 2 desktop targets: **macOS**, **Windows**, and **Linux**. Run the sections
 
 | OS | CI artifact job | Release assets |
 |----|-----------------|----------------|
-| macOS | `bundle-macos` → `.dmg` | `*.dmg` on GitHub Release |
+| macOS (Apple Silicon) | `bundle-macos` → `.dmg` | `*_aarch64.dmg` or arm64-named `.dmg` on GitHub Release |
+| macOS (Intel) | `bundle-macos-intel` → `.dmg` | `*_x64.dmg` or x86-named `.dmg` on GitHub Release |
 | Windows | `bundle-windows` → `.exe` / `.msi` | `*.exe`, `*.msi` |
 | Linux | `bundle-linux` → AppImage / deb / rpm | `.AppImage`, `.deb`, `.rpm` |
 
-CI also runs **clippy** on Ubuntu (Linux cfg) and **clippy-windows** on every app change.
+CI also runs **clippy** on Ubuntu (Linux cfg), **clippy-windows** (Windows cfg), and **cargo test** (Rust unit tests) on every app change.
 
 ## All platforms
 
@@ -43,4 +44,4 @@ CI also runs **clippy** on Ubuntu (Linux cfg) and **clippy-windows** on every ap
 
 ## Developers without every OS
 
-Rely on CI: `check` (Linux clippy + frontend build), `clippy-windows`, `bundle-macos`, `bundle-windows`, `bundle-linux`. Download PR artifacts for manual spot-checks before tagging a release.
+Rely on CI: `check` (Linux clippy + frontend build + Rust tests), `clippy-windows`, `bundle-macos`, `bundle-macos-intel`, `bundle-windows`, `bundle-linux`. Download PR artifacts for manual spot-checks before tagging a release.

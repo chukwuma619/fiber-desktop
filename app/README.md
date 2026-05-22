@@ -346,7 +346,7 @@ Check your network, firewall, or VPN. Confirm [Fiber releases](https://github.co
 
 ### Cross-platform smoke testing
 
-See [docs/PLATFORM_SMOKE.md](docs/PLATFORM_SMOKE.md) for macOS, Windows, and Linux release checklists. CI builds all three (`bundle-macos`, `bundle-windows`, `bundle-linux`); download PR artifacts if you do not have a local build on every OS.
+See [docs/PLATFORM_SMOKE.md](docs/PLATFORM_SMOKE.md) for macOS, Windows, and Linux release checklists. CI builds all three (`bundle-macos`, `bundle-macos-intel`, `bundle-windows`, `bundle-linux`) and runs Rust unit tests in the `check` job; download PR artifacts if you do not have a local build on every OS.
 
 ### macOS keychain keeps prompting for your password
 

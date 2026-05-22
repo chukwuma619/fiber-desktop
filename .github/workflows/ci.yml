@@ -111,6 +111,9 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
         working-directory: app/src-tauri
 
+      - run: cargo test
+        working-directory: app/src-tauri
+
   clippy-windows:
     needs: changes
     if: needs.changes.outputs.app == 'true'
@@ -134,7 +137,7 @@ jobs:
       - run: bun run prepare:fnn
 
       - run: cargo clippy --all-targets -- -D warnings
-        working-directory: src-tauri
+        working-directory: app/src-tauri
 
   bundle-macos:
     needs: changes
@@ -157,6 +160,44 @@ jobs:
       - run: bun run prepare:fnn
 
       - run: bun run tauri build
+
+      - name: Upload macOS bundles (Apple Silicon)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiber-desktop-macos-aarch64
+          path: app/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  bundle-macos-intel:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - run: bun install --frozen-lockfile
+
+      - run: FIBER_DESKTOP_TARGET_TRIPLE=x86_64-apple-darwin bun run prepare:fnn
+
+      - run: bun run tauri build -- --target x86_64-apple-darwin
+
+      - name: Upload macOS bundles (Intel)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiber-desktop-macos-x64
+          path: app/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
 
   bundle-windows:
     needs: changes
