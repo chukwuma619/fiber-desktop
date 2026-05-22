@@ -1,5 +1,7 @@
 # Windows smoke test checklist
 
+> **Full checklist (all OS):** [PLATFORM_SMOKE.md](PLATFORM_SMOKE.md)
+
 Run this once per release (or after large Windows-related changes) on a Windows 10/11 machine or [Windows dev VM](https://developer.microsoft.com/en-us/windows/downloads/virtual-machines/).
 
 ## Get a build

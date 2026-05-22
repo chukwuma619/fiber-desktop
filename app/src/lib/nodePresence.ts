@@ -8,10 +8,21 @@ export function logTextIndicatesFiberStoreLock(logs: string[]): boolean {
   }
   return (
     t.includes("temporarily unavailable") ||
+    t.includes("Resource temporarily unavailable") ||
+    t.includes("Device or resource busy") ||
     t.includes("Would block") ||
     t.includes("already held") ||
+    t.includes("failed to lock") ||
+    t.includes("held") ||
+    // macOS EAGAIN
     t.includes("Os { code: 35") ||
     t.includes("os error 35") ||
+    // Linux EAGAIN / EWOULDBLOCK / EBUSY (common values)
+    t.includes("Os { code: 11") ||
+    t.includes("os error 11") ||
+    t.includes("Os { code: 16") ||
+    t.includes("os error 16") ||
+    // Windows
     t.includes("Sharing violation") ||
     t.includes("being used by another process") ||
     t.includes("ERROR_LOCK_VIOLATION") ||

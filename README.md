@@ -9,7 +9,7 @@ Monorepo for **Fiber Desktop** — a Tauri desktop app for running the [Fiber Ne
 
 ## Quick links
 
-**Desktop app (macOS / Windows)**
+**Desktop app (macOS / Windows / Linux)**
 
 ```bash
 git clone https://github.com/chukwuma619/fiber-desktop.git

@@ -11,6 +11,7 @@ Built with [Tauri 2](https://v2.tauri.app/), [React](https://react.dev/), and [V
 - [Requirements](#requirements)
   - [macOS](#macos)
   - [Windows](#windows)
+  - [Linux](#linux)
 - [Getting started](#getting-started)
 - [First launch](#first-launch)
 - [Scripts](#scripts)
@@ -130,6 +131,36 @@ curl --version
 >
 > If you see *“Windows Subsystem for Linux has no installed distributions”*, PowerShell is calling WSL’s `bash` stub instead of Git Bash. Open Git Bash directly, or install WSL (`wsl --install -d Ubuntu`).
 
+### Linux
+
+Fiber Desktop supports **Linux** the same way as macOS and Windows (Tauri 2 + GTK + WebKitGTK). Use a normal terminal (bash); `prepare:fnn` needs `bash`, `curl`, and `tar`.
+
+1. **Bun** — [Bun installation guide](https://bun.sh/docs/installation).
+
+2. **Node.js** — **20.19+** or **22.12+**.
+
+3. **Rust** — [rustup](https://rustup.rs/) stable.
+
+4. **Tauri Linux dependencies** — install the packages for your distro per [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux). On Debian/Ubuntu, the same set as CI:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y \
+     build-essential pkg-config libssl-dev libgtk-3-dev \
+     libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+   ```
+
+5. **Secret Service** — passwords are stored via the desktop keyring (GNOME Keyring, KWallet, etc.). Ensure a keyring daemon is running on your session.
+
+**Verify:**
+
+```bash
+bun --version
+node --version
+rustc --version
+bash --version
+```
+
 ## Getting started
 
 ### 1. Clone the repository
@@ -167,8 +198,8 @@ The first run may take several minutes while Rust dependencies compile.
 
 When you open the app for the first time:
 
-1. **Guided setup** runs automatically (until you finish or choose “Skip for now”). Complete the steps in order: network → node program → config file → keychain password → wallet key file.
-2. **CKB key file** — Fiber is not a browser wallet. Export a CKB secp256k1 private key (for example with `ckb-cli account export`) and save it as a file named `key` in the `ckb` folder under your node data directory. Use **Open the key folder** in the app to open the correct location in Finder or Explorer.
+1. **Guided setup** runs automatically (until you finish or choose “Skip for now”). Complete the steps in order: network → node program → config file → unlock password (Keychain / Credential Manager / keyring) → wallet key file.
+2. **CKB key file** — Fiber is not a browser wallet. Export a CKB secp256k1 private key (for example with `ckb-cli account export`) and save it as a file named `key` in the `ckb` folder under your node data directory. Use **Open the key folder** in the app to open that folder in your file manager.
 3. **Password** — the password stored in the app encrypts your key file when the node runs; it does not create the key.
 4. **Start the node** from Overview or the Node tab, then use the Network tab to connect to relays.
 
@@ -193,7 +224,7 @@ For more detail, see the [Fiber testnet nodes / key setup guide](https://github.
 bun run tauri build
 ```
 
-Installers are written to `src-tauri/target/release/bundle/` (`.dmg` on macOS, `.msi` / `.exe` on Windows).
+Installers are written to `src-tauri/target/release/bundle/` (`.dmg` on macOS, `.msi` / `.exe` on Windows, `.AppImage` / `.deb` / `.rpm` on Linux).
 
 ## Troubleshooting
 
@@ -259,9 +290,9 @@ Install Rust and ensure `rustc` is on your `PATH`, then run `bun run setup` agai
 
 Check your network, firewall, or VPN. Confirm [Fiber releases](https://github.com/nervosnetwork/fiber/releases) are reachable from your machine.
 
-### Windows smoke testing
+### Cross-platform smoke testing
 
-See [docs/WINDOWS_SMOKE.md](docs/WINDOWS_SMOKE.md) for a release checklist. CI builds Windows installers on every app change; download artifacts from the **bundle-windows** job if you do not have a local build.
+See [docs/PLATFORM_SMOKE.md](docs/PLATFORM_SMOKE.md) for macOS, Windows, and Linux release checklists. CI builds all three (`bundle-macos`, `bundle-windows`, `bundle-linux`); download PR artifacts if you do not have a local build on every OS.
 
 ### macOS keychain keeps prompting for your password
 

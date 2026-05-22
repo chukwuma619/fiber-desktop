@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
+import { usePlatformLabels } from "./usePlatformLabels";
 import type { CkbKeyStatus } from "../types/settings";
 
 export function useCkbKey(setLoadError: (msg: string | null) => void) {
+  const platform = usePlatformLabels();
   const [ckbKeyStatus, setCkbKeyStatus] = useState<CkbKeyStatus | null>(null);
   const [nodeTabPrivKey, setNodeTabPrivKey] = useState("");
 
@@ -47,13 +49,13 @@ export function useCkbKey(setLoadError: (msg: string | null) => void) {
       const msg = String(e);
       if (dir) {
         setLoadError(
-          `${msg}\n\nOpen this folder manually in File Explorer or Finder:\n${dir}`,
+          `${msg}\n\nOpen this folder manually in ${platform.fileManagerName}:\n${dir}`,
         );
       } else {
         setLoadError(msg);
       }
     }
-  }, [refreshCkbKeyStatus, setLoadError]);
+  }, [platform.fileManagerName, refreshCkbKeyStatus, setLoadError]);
 
   return {
     ckbKeyStatus,

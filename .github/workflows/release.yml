@@ -123,7 +123,7 @@ jobs:
             app/src-tauri/target/release/bundle/appimage/*.AppImage
             app/src-tauri/target/release/bundle/deb/*.deb
             app/src-tauri/target/release/bundle/rpm/*.rpm
-          if-no-files-found: warn
+          if-no-files-found: error
 
   publish:
     needs: [build-macos, build-windows, build-linux]

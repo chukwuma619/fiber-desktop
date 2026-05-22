@@ -232,7 +232,10 @@ pub fn fnn_start(app: tauri::AppHandle, runtime: tauri::State<FnnRuntime>) -> Re
     let settings = settings::load_or_default(&app)?;
     fnn_precheck::check_ckb_node_key_ready(&settings.fnn_data_dir)?;
     let password = secret::get_fnn_secret_password()?.ok_or_else(|| {
-        "No FNN key password in OS keychain. Save one under Security first.".to_string()
+        format!(
+            "No FNN key password in {}. Save one under Security first.",
+            crate::platform::platform_labels().secret_storage_name
+        )
     })?;
     let pid = runtime.start(
         &app,

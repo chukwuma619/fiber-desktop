@@ -133,14 +133,7 @@ export function NodeTab({
             <p className="node-lock-hint-body">
               Another <code className="code-pill">fnn</code> or Fiber Desktop
               window is using the same data directory, so the database cannot
-              lock. Quit duplicates and any other{" "}
-              {platform.os === "windows" ? (
-                <>
-                  PowerShell, Command Prompt, or Git Bash window running{" "}
-                </>
-              ) : (
-                <>terminal </>
-              )}
+              lock. Quit duplicates and any other {platform.terminalHint}
               <code className="code-pill">fnn</code> with the same{" "}
               <code className="code-pill">-d</code> path before starting again.
             </p>
