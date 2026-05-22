@@ -308,6 +308,11 @@ pub fn fnn_runtime_snapshot(
 }
 
 #[tauri::command]
+pub fn get_platform_labels() -> crate::platform::PlatformLabels {
+    crate::platform::platform_labels()
+}
+
+#[tauri::command]
 pub fn fiber_rpc_call(
     app: tauri::AppHandle,
     method: String,

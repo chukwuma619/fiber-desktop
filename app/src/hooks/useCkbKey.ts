@@ -38,12 +38,20 @@ export function useCkbKey(setLoadError: (msg: string | null) => void) {
 
   const openCkbKeyFolder = useCallback(async () => {
     setLoadError(null);
+    let dir: string | null = null;
     try {
-      const dir = await invoke<string>("prepare_ckb_key_folder");
+      dir = await invoke<string>("prepare_ckb_key_folder");
       await openPath(dir);
       void refreshCkbKeyStatus();
     } catch (e) {
-      setLoadError(String(e));
+      const msg = String(e);
+      if (dir) {
+        setLoadError(
+          `${msg}\n\nOpen this folder manually in File Explorer or Finder:\n${dir}`,
+        );
+      } else {
+        setLoadError(msg);
+      }
     }
   }, [refreshCkbKeyStatus, setLoadError]);
 

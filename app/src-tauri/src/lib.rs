@@ -5,6 +5,7 @@ mod fiber_rpc;
 mod fnn_fetch;
 mod fnn_precheck;
 mod fnn_runtime;
+mod platform;
 mod secret;
 mod settings;
 
@@ -13,7 +14,9 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init());
 
     #[cfg(desktop)]
     {
@@ -54,6 +57,7 @@ pub fn run() {
             commands::write_ckb_private_key,
             commands::use_bundled_fnn_binary,
             commands::fnn_adopt_orphan,
+            commands::get_platform_labels,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

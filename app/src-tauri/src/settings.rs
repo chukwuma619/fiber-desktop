@@ -85,14 +85,49 @@ fn home_dir() -> Option<PathBuf> {
     }
 }
 
+/// Expand `~/`, `~\`, `%VAR%`, and common Windows profile env vars in path strings.
 fn expand_tilde(path: &str) -> String {
     let p = path.trim();
-    if let Some(rest) = p.strip_prefix("~/") {
+    if let Some(rest) = p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\")) {
         if let Some(h) = home_dir() {
             return h.join(rest).to_string_lossy().into_owned();
         }
     }
+    if p.contains('%') {
+        return expand_percent_env_vars(p);
+    }
     p.to_string()
+}
+
+fn expand_percent_env_vars(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    let mut chars = path.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '%' {
+            out.push(c);
+            continue;
+        }
+        let mut name = String::new();
+        while let Some(&next) = chars.peek() {
+            if next == '%' {
+                chars.next();
+                break;
+            }
+            name.push(chars.next().unwrap());
+        }
+        if name.is_empty() {
+            out.push('%');
+            continue;
+        }
+        if let Ok(val) = std::env::var(&name) {
+            out.push_str(&val);
+        } else {
+            out.push('%');
+            out.push_str(&name);
+            out.push('%');
+        }
+    }
+    out
 }
 
 /// Trim, expand `~`, resolve relative paths against stable roots, and apply defaults.
@@ -195,4 +230,31 @@ pub fn save(app: &tauri::AppHandle, settings: &AppSettings) -> Result<(), String
     }
     let raw = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
     std::fs::write(path, raw).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expand_tilde_unix_home() {
+        let prev = std::env::var_os("HOME");
+        std::env::set_var("HOME", "/Users/test");
+        assert_eq!(expand_tilde("~/fnn-data"), "/Users/test/fnn-data");
+        if let Some(h) = prev {
+            std::env::set_var("HOME", h);
+        } else {
+            std::env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn expand_percent_env_var() {
+        std::env::set_var("FIBER_DESKTOP_TEST_VAR", "C:\\Users\\alice");
+        assert_eq!(
+            expand_tilde("%FIBER_DESKTOP_TEST_VAR%\\fnn-data"),
+            "C:\\Users\\alice\\fnn-data"
+        );
+        std::env::remove_var("FIBER_DESKTOP_TEST_VAR");
+    }
 }

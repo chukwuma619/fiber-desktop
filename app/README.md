@@ -259,6 +259,10 @@ Install Rust and ensure `rustc` is on your `PATH`, then run `bun run setup` agai
 
 Check your network, firewall, or VPN. Confirm [Fiber releases](https://github.com/nervosnetwork/fiber/releases) are reachable from your machine.
 
+### Windows smoke testing
+
+See [docs/WINDOWS_SMOKE.md](docs/WINDOWS_SMOKE.md) for a release checklist. CI builds Windows installers on every app change; download artifacts from the **bundle-windows** job if you do not have a local build.
+
 ### macOS keychain keeps prompting for your password
 
 When macOS asks to access the keychain, choose **Always Allow** so you are not prompted on every node start. The app avoids unnecessary keychain reads in the UI to reduce repeated prompts.

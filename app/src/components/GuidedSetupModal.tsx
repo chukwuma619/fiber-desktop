@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AppSettings, CkbKeyStatus } from "../types/settings";
+import { usePlatformLabels } from "../hooks/usePlatformLabels";
+import { ckbKeyPath, displayPath } from "../lib/paths";
 import type { NetworkId } from "../lib/publicNodes";
+import type { AppSettings, CkbKeyStatus } from "../types/settings";
 
 export type GuidedStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -89,9 +91,12 @@ export function GuidedSetupModal({
   onRefreshCkbKey,
   onOpenKeyFolder,
 }: Props) {
+  const platform = usePlatformLabels();
+
   if (!open) return null;
 
   const busy = !!toolsBusy;
+  const keyFilePath = ckbKeyPath(settings.fnnDataDir);
 
   function goBack() {
     if (step <= 0) return;
@@ -184,7 +189,7 @@ export function GuidedSetupModal({
                 <li>Create your <code className="code-pill">config.yml</code></li>
                 <li>
                   Add your CKB key file (wallet identity) and save your unlock
-                  password to the system keychain
+                  password to {platform.secretStorageName}
                 </li>
                 <li>Start the node with one click</li>
               </ul>
@@ -331,11 +336,11 @@ export function GuidedSetupModal({
               <dl className="guided-paths">
                 <dt>Data folder</dt>
                 <dd>
-                  <code>{settings.fnnDataDir}</code>
+                  <code>{displayPath(settings.fnnDataDir)}</code>
                 </dd>
                 <dt>Configuration file</dt>
                 <dd>
-                  <code>{settings.fnnConfigPath}</code>
+                  <code>{displayPath(settings.fnnConfigPath)}</code>
                 </dd>
               </dl>
             </div>
@@ -386,7 +391,7 @@ export function GuidedSetupModal({
             <div className="guided-step">
               <p className="guided-lead">
                 Choose a password your node will use to unlock keys. It is stored
-                only in your system keychain, not in a plain text file.
+                only in {platform.secretStorageName}, not in a plain text file.
               </p>
               <label className="field guided-field">
                 <span className="field-label">Node key password</span>
@@ -411,11 +416,12 @@ export function GuidedSetupModal({
                 disabled={!wizardPassword.trim() || busy}
                 onClick={() => void onSaveWizardPassword()}
               >
-                Save to keychain
+                {platform.savePasswordLabel}
               </button>
               {passwordSavedInGuided ? (
                 <p className="guided-note guided-note-ok" role="status">
-                  Saved to keychain. Press <strong>Continue</strong> in the bar
+                  Saved to {platform.secretStorageName}. Press{" "}
+                  <strong>Continue</strong> in the bar
                   below.
                 </p>
               ) : null}
@@ -429,9 +435,7 @@ export function GuidedSetupModal({
                 private key (64 hex characters, optional{" "}
                 <code className="code-pill">0x</code> prefix) below. It is saved
                 to{" "}
-                <code className="code-pill">
-                  {settings.fnnDataDir.replace(/\/$/, "")}/ckb/key
-                </code>
+                <code className="code-pill">{keyFilePath}</code>
                 . The password you saved only encrypts this file; it does not
                 create the key
               </p>

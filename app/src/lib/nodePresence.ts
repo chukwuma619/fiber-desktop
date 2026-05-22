@@ -11,7 +11,14 @@ export function logTextIndicatesFiberStoreLock(logs: string[]): boolean {
     t.includes("Would block") ||
     t.includes("already held") ||
     t.includes("Os { code: 35") ||
-    t.includes("os error 35")
+    t.includes("os error 35") ||
+    t.includes("Sharing violation") ||
+    t.includes("being used by another process") ||
+    t.includes("ERROR_LOCK_VIOLATION") ||
+    t.includes("Os { code: 32") ||
+    t.includes("os error 32") ||
+    t.includes("Os { code: 33") ||
+    t.includes("os error 33")
   );
 }
 

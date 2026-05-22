@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
 import type { NetworkId } from "../lib/publicNodes";
 import { pickInvoiceAddress } from "../lib/networkRpcParse";
 import { useRpc } from "../lib/useRpc";
@@ -32,13 +33,7 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
       },
     });
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-  };
+  const { copy, copyFeedback } = useCopyWithFeedback();
 
   return (
     <div className="pmt-layout">
@@ -136,6 +131,11 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
                 >
                   Copy
                 </button>
+                {copyFeedback ? (
+                  <span className="save-toast" role="status">
+                    {copyFeedback}
+                  </span>
+                ) : null}
               </div>
               <p className="pmt-result-note">
                 Send this invoice string to the payer. Once paid, check My

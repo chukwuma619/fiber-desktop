@@ -111,6 +111,31 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
         working-directory: app/src-tauri
 
+  clippy-windows:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run prepare:fnn
+
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+
   bundle-macos:
     needs: changes
     if: needs.changes.outputs.app == 'true'
@@ -163,4 +188,4 @@ jobs:
           path: |
             app/src-tauri/target/release/bundle/nsis/*.exe
             app/src-tauri/target/release/bundle/msi/*.msi
-          if-no-files-found: warn
+          if-no-files-found: error

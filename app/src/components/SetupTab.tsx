@@ -1,4 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
+import { usePathPickers } from "../hooks/usePathPickers";
+import { usePlatformLabels } from "../hooks/usePlatformLabels";
 import type { NetworkId } from "../lib/publicNodes";
 import { callFiberRpc } from "../lib/fiberRpc";
 import type {
@@ -48,6 +50,9 @@ export function SetupTab({
   onApplyCkbRpcToConfigFile,
   onGoToOverview,
 }: SetupTabProps) {
+  const platform = usePlatformLabels();
+  const { pickDirectory, pickConfigFile, pickFnnBinary } = usePathPickers();
+
   if (!settings) {
     return <p className="loading-text">Loading settings…</p>;
   }
@@ -84,7 +89,7 @@ export function SetupTab({
             <h2 className="panel-title">Network & endpoints</h2>
             <p className="panel-lead panel-lead-tight">
               Network choice, CKB RPC, and local Node API URL (saved separately
-              from your keychain password).
+              from your {platform.secretStorageName} password).
             </p>
             <div className="field-grid">
               <label className="field">
@@ -137,37 +142,82 @@ export function SetupTab({
             <div className="field-grid">
               <label className="field field-span-2">
                 <span className="field-label">Data folder</span>
-                <input
-                  className="input input-mono"
-                  value={settings.fnnDataDir}
-                  onChange={(e) =>
-                    setSettings({ ...settings, fnnDataDir: e.target.value })
-                  }
-                  spellCheck={false}
-                />
+                <div className="path-field-row">
+                  <input
+                    className="input input-mono"
+                    value={settings.fnnDataDir}
+                    onChange={(e) =>
+                      setSettings({ ...settings, fnnDataDir: e.target.value })
+                    }
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      void pickDirectory().then((p) => {
+                        if (p) setSettings({ ...settings, fnnDataDir: p });
+                      });
+                    }}
+                  >
+                    Browse…
+                  </button>
+                </div>
               </label>
               <label className="field field-span-2">
                 <span className="field-label">Configuration file</span>
-                <input
-                  className="input input-mono"
-                  value={settings.fnnConfigPath}
-                  onChange={(e) =>
-                    setSettings({ ...settings, fnnConfigPath: e.target.value })
-                  }
-                  spellCheck={false}
-                />
+                <div className="path-field-row">
+                  <input
+                    className="input input-mono"
+                    value={settings.fnnConfigPath}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        fnnConfigPath: e.target.value,
+                      })
+                    }
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      void pickConfigFile().then((p) => {
+                        if (p) setSettings({ ...settings, fnnConfigPath: p });
+                      });
+                    }}
+                  >
+                    Browse…
+                  </button>
+                </div>
               </label>
               <label className="field field-span-2">
                 <span className="field-label">Node program (optional)</span>
-                <input
-                  className="input input-mono"
-                  value={settings.fnnBinaryPath}
-                  onChange={(e) =>
-                    setSettings({ ...settings, fnnBinaryPath: e.target.value })
-                  }
-                  placeholder="Leave blank to use the copy bundled with this app"
-                  spellCheck={false}
-                />
+                <div className="path-field-row">
+                  <input
+                    className="input input-mono"
+                    value={settings.fnnBinaryPath}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        fnnBinaryPath: e.target.value,
+                      })
+                    }
+                    placeholder="Leave blank to use the copy bundled with this app"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      void pickFnnBinary().then((p) => {
+                        if (p) setSettings({ ...settings, fnnBinaryPath: p });
+                      });
+                    }}
+                  >
+                    Browse…
+                  </button>
+                </div>
               </label>
             </div>
             <div className="btn-row btn-row-footer">
@@ -301,7 +351,8 @@ export function SetupTab({
       <section className="panel">
         <h2 className="panel-title">Security</h2>
         <p className="panel-lead panel-lead-tight">
-          Password to unlock node keys—stored in the system keychain only.
+          Password to unlock node keys—stored in {platform.secretStorageName}{" "}
+          only.
         </p>
         <div className="field-grid">
           <label className="field field-span-2">
@@ -323,11 +374,11 @@ export function SetupTab({
             onClick={() => void onSavePassword()}
             disabled={!password.trim()}
           >
-            Save to keychain
+            {platform.savePasswordLabel}
           </button>
           <span className={`keychain-badge${hasPw ? " keychain-ok" : ""}`}>
             {hasPw === null
-              ? "Checking keychain…"
+              ? platform.checkingPasswordLabel
               : hasPw
                 ? "Password stored"
                 : "No password yet"}

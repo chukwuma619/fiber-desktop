@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { usePlatformLabels } from "../hooks/usePlatformLabels";
+import { ckbKeyPath } from "../lib/paths";
 import { logTextIndicatesFiberStoreLock } from "../lib/nodePresence";
 import type { NodePresenceKind } from "../lib/nodePresence";
 import type { CkbKeyStatus, FnnStatusView } from "../types/settings";
@@ -33,11 +35,11 @@ export function NodeTab({
   onStopNode,
   onSyncRuntime,
 }: NodeTabProps) {
-  const keyPathDisplay = useMemo(() => {
-    if (!settingsDataDir?.trim()) return "{data folder}/ckb/key";
-    const base = settingsDataDir.replace(/[/\\]+$/, "");
-    return `${base}/ckb/key`;
-  }, [settingsDataDir]);
+  const platform = usePlatformLabels();
+  const keyPathDisplay = useMemo(
+    () => ckbKeyPath(settingsDataDir),
+    [settingsDataDir],
+  );
 
   const logPanelLines = useMemo(() => {
     if (nodePresence === "remote" && fnnStatus?.kind !== "running") {
@@ -131,7 +133,14 @@ export function NodeTab({
             <p className="node-lock-hint-body">
               Another <code className="code-pill">fnn</code> or Fiber Desktop
               window is using the same data directory, so the database cannot
-              lock. Quit duplicates and any terminal{" "}
+              lock. Quit duplicates and any other{" "}
+              {platform.os === "windows" ? (
+                <>
+                  PowerShell, Command Prompt, or Git Bash window running{" "}
+                </>
+              ) : (
+                <>terminal </>
+              )}
               <code className="code-pill">fnn</code> with the same{" "}
               <code className="code-pill">-d</code> path before starting again.
             </p>

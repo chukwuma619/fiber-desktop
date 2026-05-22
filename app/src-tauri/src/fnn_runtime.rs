@@ -88,16 +88,7 @@ fn pid_is_alive(pid: u32) -> bool {
     }
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        // PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        // We approximate by checking if `tasklist /FI "PID eq {pid}"` returns a line.
-        Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
-            .unwrap_or(false)
+        windows_pid_is_alive(pid)
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
@@ -130,11 +121,45 @@ fn kill_pid(pid: u32) {
     }
     #[cfg(windows)]
     {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/PID", &pid.to_string()])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        windows_terminate_pid(pid);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while pid_is_alive(pid) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+}
+
+#[cfg(windows)]
+fn windows_pid_is_alive(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, FALSE, STILL_ACTIVE};
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let mut exit_code: u32 = 0;
+        let ok = GetExitCodeProcess(handle, &mut exit_code);
+        CloseHandle(handle);
+        ok != 0 && exit_code == STILL_ACTIVE
+    }
+}
+
+#[cfg(windows)]
+fn windows_terminate_pid(pid: u32) {
+    use windows_sys::Win32::Foundation::{CloseHandle, FALSE};
+    use windows_sys::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        if handle.is_null() {
+            return;
+        }
+        let _ = TerminateProcess(handle, 1);
+        CloseHandle(handle);
     }
 }
 
@@ -279,6 +304,13 @@ impl FnnRuntime {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         cmd.stdin(Stdio::null());
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = cmd
             .spawn()

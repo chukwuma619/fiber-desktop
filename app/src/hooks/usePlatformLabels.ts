@@ -1,0 +1,28 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+
+export type PlatformLabels = {
+  os: string;
+  secretStorageName: string;
+  savePasswordLabel: string;
+  checkingPasswordLabel: string;
+};
+
+const FALLBACK: PlatformLabels = {
+  os: "unknown",
+  secretStorageName: "system keychain",
+  savePasswordLabel: "Save password",
+  checkingPasswordLabel: "Checking…",
+};
+
+export function usePlatformLabels(): PlatformLabels {
+  const [labels, setLabels] = useState<PlatformLabels>(FALLBACK);
+
+  useEffect(() => {
+    void invoke<PlatformLabels>("get_platform_labels")
+      .then(setLabels)
+      .catch(() => setLabels(FALLBACK));
+  }, []);
+
+  return labels;
+}

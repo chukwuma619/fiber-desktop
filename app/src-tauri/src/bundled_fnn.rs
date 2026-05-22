@@ -123,9 +123,7 @@ pub fn classify_binary_source(app: &AppHandle, active: &Path) -> FnnBinarySource
     if is_active_path_bundled(app, active) {
         return FnnBinarySource::Bundled;
     }
-    if tools_install_dir(app)
-        .is_some_and(|dir| path_under_dir(active, &dir))
-    {
+    if tools_install_dir(app).is_some_and(|dir| path_under_dir(active, &dir)) {
         return FnnBinarySource::Downloaded;
     }
     FnnBinarySource::Custom

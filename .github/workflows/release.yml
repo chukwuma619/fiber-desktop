@@ -80,7 +80,7 @@ jobs:
           path: |
             app/src-tauri/target/release/bundle/nsis/*.exe
             app/src-tauri/target/release/bundle/msi/*.msi
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build-linux:
     runs-on: ubuntu-latest

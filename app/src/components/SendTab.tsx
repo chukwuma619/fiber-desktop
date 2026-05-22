@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
 import { useRpc } from "../lib/useRpc";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -35,13 +36,7 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
       },
     });
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-  };
+  const { copy, copyFeedback } = useCopyWithFeedback();
 
   return (
     <div className="pmt-layout">
@@ -113,6 +108,11 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
                 >
                   Copy hash
                 </button>
+                {copyFeedback ? (
+                  <span className="save-toast" role="status">
+                    {copyFeedback}
+                  </span>
+                ) : null}
               </div>
               <p className="pmt-result-note">
                 This payment hash is pre-filled below so you can verify it.

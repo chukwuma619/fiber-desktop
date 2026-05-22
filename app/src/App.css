@@ -925,6 +925,17 @@ select.input {
   padding-right: 2rem;
 }
 
+.path-field-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.path-field-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
 .inline-field {
   display: flex;
   gap: 0.5rem;

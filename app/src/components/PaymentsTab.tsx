@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
 import {
   parseChannelList,
   parseNodeInfo,
@@ -80,13 +81,7 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
       },
     });
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-  };
+  const { copy, copyFeedback } = useCopyWithFeedback();
 
   return (
     <div className="pmt-layout">
@@ -246,6 +241,11 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
                   >
                     Copy
                   </button>
+                  {copyFeedback ? (
+                    <span className="save-toast" role="status">
+                      {copyFeedback}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="pmt-result-note">
                   Refresh My Channels (step 2) until state shows{" "}
