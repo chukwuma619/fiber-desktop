@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { FIBER_DESKTOP_REPO_URL, fiberDesktopReleasesUrl } from "../../constants/marketing";
 import { GuideChrome } from "./GuideChrome";
 import { Callout, Code, Pill, Step } from "./guidePrimitives";
@@ -15,7 +16,7 @@ export function HowToSetupPage() {
         <h2 className="hiw-h2">Install &amp; first launch</h2>
         <p>
           Download the installer for your OS from the{" "}
-          <a href="/download">downloads page</a> or{" "}
+          <Link to="/download">downloads page</Link> or{" "}
           <a href={releasesUrl} target="_blank" rel="noreferrer">
             GitHub Releases
           </a>

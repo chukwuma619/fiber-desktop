@@ -1,4 +1,5 @@
 import { FIBER_DESKTOP_REPO_URL } from "../../constants/marketing";
+import { Link } from "react-router-dom";
 import { GuideChrome } from "./GuideChrome";
 import { Callout } from "./guidePrimitives";
 
@@ -53,10 +54,10 @@ export function GuidesIndexPage() {
         <h2>Ready to try it?</h2>
         <p>Download Fiber Desktop and run the guided setup from the Overview tab.</p>
         <div className="landing-cta-row">
-          <a className="landing-cta-primary" href="/download">
+          <Link className="landing-cta-primary" to="/download">
             <span className="landing-cta-label">Download Fiber Desktop</span>
             <span className="landing-cta-meta">Pick your OS · free</span>
-          </a>
+          </Link>
           <a className="landing-cta-secondary" href={FIBER_DESKTOP_REPO_URL} target="_blank" rel="noreferrer">
             Source on GitHub
           </a>

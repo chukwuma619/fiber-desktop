@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
   FIBER_DESKTOP_REPO_URL,
   fiberDesktopReleasesUrl,
@@ -46,7 +47,7 @@ export function GuideChrome({
           </div>
           <div className="landing-footer-col">
             <span className="landing-footer-col-title">Product</span>
-            <a href="/download">Download</a>
+            <Link to="/download">Download</Link>
             <a href={releasesUrl} target="_blank" rel="noreferrer">
               Releases
             </a>

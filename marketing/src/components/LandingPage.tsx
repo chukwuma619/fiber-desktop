@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import {
   FIBER_DESKTOP_REPO_URL,
   fiberDesktopReleasesUrl,
@@ -28,10 +29,10 @@ export function LandingPage() {
                 touching the terminal.
               </p>
               <div className="landing-cta-row">
-                <a className="landing-cta-primary" href="/download">
+                <Link className="landing-cta-primary" to="/download">
                   <span className="landing-cta-label">Download Fiber Desktop</span>
                   <span className="landing-cta-meta">macOS &amp; Windows · free</span>
-                </a>
+                </Link>
                 <a className="landing-cta-secondary" href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md" target="_blank" rel="noreferrer">
                   Node setup guide
                 </a>
@@ -171,10 +172,10 @@ export function LandingPage() {
             Download the latest release and follow the in-app guided setup.
           </p>
           <div className="landing-cta-row landing-cta-row-center">
-            <a className="landing-cta-primary" href="/download">
+            <Link className="landing-cta-primary" to="/download">
               <span className="landing-cta-label">Download Fiber Desktop</span>
               <span className="landing-cta-meta">Pick your OS · free</span>
-            </a>
+            </Link>
             <a className="landing-cta-ghost" href="https://docs.fiber.world/" target="_blank" rel="noreferrer">
               Read the docs
             </a>
@@ -195,7 +196,7 @@ export function LandingPage() {
           </div>
           <div className="landing-footer-col">
             <span className="landing-footer-col-title">Product</span>
-            <a href="/download">Download</a>
+            <Link to="/download">Download</Link>
             <a href={releasesUrl} target="_blank" rel="noreferrer">Releases</a>
             <a href={FIBER_DESKTOP_REPO_URL} target="_blank" rel="noreferrer">Source code</a>
           </div>
