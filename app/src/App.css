@@ -2107,6 +2107,75 @@ select.input {
   border: 1px solid var(--accent-border);
 }
 
+.pmt-result-pending {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.pmt-result-pending-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.pmt-result-pending .pmt-result-label {
+  color: var(--warn);
+}
+
+.pmt-advanced-details {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.pmt-advanced-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.pmt-row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  min-width: 8rem;
+}
+
+.pmt-row-actions > .btn {
+  flex-shrink: 0;
+}
+
+.pmt-close-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  max-width: 14rem;
+}
+
+.pmt-close-confirm-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.pmt-close-confirm-btns {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pmt-row-msg,
+.pmt-row-msg-ok {
+  margin: 0;
+  font-size: 0.72rem;
+  max-width: 14rem;
+  text-align: right;
+  line-height: 1.35;
+}
+
 .pmt-result-label {
   font-size: 0.72rem;
   font-weight: 700;

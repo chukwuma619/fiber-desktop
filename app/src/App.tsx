@@ -276,7 +276,13 @@ function App() {
             />
           )}
 
-          {tab === "payments" && <PaymentsTab callFiberRpc={callFiberRpc} />}
+          {tab === "payments" && (
+            <PaymentsTab
+              callFiberRpc={callFiberRpc}
+              rpcReachable={rpcReachable}
+              network={netId}
+            />
+          )}
 
           {tab === "receive" && (
             <ReceiveTab netId={netId} callFiberRpc={callFiberRpc} />

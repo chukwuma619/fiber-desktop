@@ -490,9 +490,9 @@ export function GuidedSetupModal({
                 </p>
               )}
               <p className="guided-note">
-                After the node is running, open <strong>Setup</strong> and use{" "}
-                <strong>Connect to a peer</strong> before opening channels on the{" "}
-                <strong>Channels</strong> tab.
+                After the node is running, open the <strong>Channels</strong> tab and
+                use <strong>Open a channel</strong> to connect to a peer and fund your
+                first channel in one step.
               </p>
               <p className="guided-lead">
                 If something fails, open the <strong>Node</strong> tab and read the

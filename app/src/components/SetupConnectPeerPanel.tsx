@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buildConnectPeerParams } from "../lib/connectPeerParams";
 import { useRpc } from "../lib/useRpc";
 
 export type SetupConnectPeerPanelProps = {
@@ -24,7 +25,7 @@ export function SetupConnectPeerPanel({
       if (method === "connect_peer") {
         setConnectResult({
           ok: true,
-          msg: "Connected. You can open a channel from the Channels tab when you are ready.",
+          msg: "Connected. You can also open a channel from the Channels tab.",
         });
       }
     },
@@ -64,16 +65,8 @@ export function SetupConnectPeerPanel({
           disabled={rpcBlocked || anyBusy || !customAddress.trim()}
           onClick={() => {
             setConnectResult(null);
-            const addr = customAddress.trim();
-            const pk = customPubkey.trim();
-            let params: object[];
-            if (addr.startsWith("/")) {
-              params = pk
-                ? [{ pubkey: pk, address: addr }]
-                : [{ address: addr }];
-            } else {
-              params = [{ pubkey: addr }];
-            }
+            const params = buildConnectPeerParams(customAddress, customPubkey);
+            if (params.length === 0) return;
             void runRpc("Connect peer", "connect_peer", params);
           }}
         >
@@ -101,7 +94,7 @@ export function SetupConnectPeerPanel({
 
       {rpcError ? (
         <div className="network-inline-error" role="alert" style={{ marginTop: "0.65rem" }}>
-          <strong className="network-inline-error-title">Last RPC error</strong>
+          <strong className="network-inline-error-title">Connection failed</strong>
           <p className="network-inline-error-body">{rpcError}</p>
           <button
             type="button"

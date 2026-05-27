@@ -105,6 +105,60 @@ function formatFromBigInt(shannons: bigint): string {
   return `${whole.toString()}.${fracStr} CKB`;
 }
 
+export function isChannelReady(stateLabel: string): boolean {
+  const u = stateLabel.toUpperCase();
+  return u.includes("READY") && !u.includes("NOT");
+}
+
+export function formatChannelStateForDisplay(stateLabel: string): string {
+  const u = stateLabel.toUpperCase();
+  if (isChannelReady(stateLabel)) return "Ready";
+  if (u.includes("NEGOTIAT") || u.includes("PENDING") || u.includes("AWAIT")) {
+    return "Opening";
+  }
+  if (u.includes("SHUTDOWN") || u.includes("CLOS")) return "Closing";
+  if (u.includes("DISABLE")) return "Disabled";
+  const stripped = stateLabel.replace(/^CHANNEL_/i, "");
+  if (!stripped || stripped === stateLabel) {
+    return stateLabel.length > 24 ? truncateMiddle(stateLabel, 8, 6) : stateLabel;
+  }
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+}
+
+export function channelStateBadgeClass(stateLabel: string): string {
+  if (isChannelReady(stateLabel)) return "network-badge";
+  const u = stateLabel.toUpperCase();
+  if (
+    u.includes("NEGOTIAT") ||
+    u.includes("PENDING") ||
+    u.includes("AWAIT") ||
+    u.includes("OPEN")
+  ) {
+    return "network-badge network-badge-warn";
+  }
+  if (u.includes("SHUTDOWN") || u.includes("CLOS") || u.includes("DISABLE")) {
+    return "network-badge network-badge-muted";
+  }
+  return "network-badge network-badge-muted";
+}
+
+export function findOpeningChannel(
+  channels: ParsedChannelRow[],
+  tempId: string | null,
+  peerPubkey: string
+): ParsedChannelRow | undefined {
+  const peer = peerPubkey.trim().toLowerCase();
+  if (tempId) {
+    const byId = channels.find((c) => c.channelId === tempId);
+    if (byId) return byId;
+  }
+  if (!peer) return undefined;
+  return channels.find(
+    (c) =>
+      c.peerPubkey.toLowerCase() === peer && !isChannelReady(c.stateLabel)
+  );
+}
+
 export function summarizeChannelState(state: unknown): string {
   if (isRecord(state)) {
     // Fiber v0.8+: { state_name: "CHANNEL_READY", state_flags: [] }

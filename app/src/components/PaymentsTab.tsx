@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useChannelPolling } from "../hooks/useChannelPolling";
 import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
+import { buildConnectPeerParams } from "../lib/connectPeerParams";
 import {
+  channelStateBadgeClass,
+  findOpeningChannel,
+  formatChannelStateForDisplay,
+  isChannelReady,
   parseChannelList,
   parseNodeInfo,
   type ParsedChannelRow,
   type ParsedNodeSummary,
 } from "../lib/networkRpcParse";
+import { PUBLIC_NODES, type NetworkId } from "../lib/publicNodes";
 import { useRpc } from "../lib/useRpc";
 
 const SECP256K1_CODE_HASH =
@@ -33,28 +40,49 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+type OpenPhase = "idle" | "connecting" | "opening";
+
 export type PaymentsTabProps = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
+  rpcReachable: boolean;
+  network: NetworkId;
 };
 
-export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
+export function PaymentsTab({
+  callFiberRpc,
+  rpcReachable,
+  network,
+}: PaymentsTabProps) {
   const [nodeSummary, setNodeSummary] = useState<ParsedNodeSummary | null>(null);
-
-  // Channels
   const [channels, setChannels] = useState<ParsedChannelRow[]>([]);
 
-  // Step 1: Open Channel
-  const [openPubkey, setOpenPubkey] = useState("");
+  const [peerAddress, setPeerAddress] = useState("");
+  const [peerPubkey, setPeerPubkey] = useState("");
   const [fundingCkb, setFundingCkb] = useState("500");
   const [openTempId, setOpenTempId] = useState<string | null>(null);
+  const [openingPeerPubkey, setOpeningPeerPubkey] = useState("");
+  const [openPhase, setOpenPhase] = useState<OpenPhase>("idle");
 
-  // Step 3: Close Channel
-  const [closeChannelId, setCloseChannelId] = useState("");
-  const [closeLockArg, setCloseLockArg] = useState("");
+  const [closeConfirmId, setCloseConfirmId] = useState<string | null>(null);
+  const [closeRowBusy, setCloseRowBusy] = useState<string | null>(null);
+  const [closeRowMessage, setCloseRowMessage] = useState<{
+    channelId: string;
+    ok: boolean;
+    msg: string;
+  } | null>(null);
 
-  // Track whether list_channels has ever been called and what it last returned
   const [channelsLastFetched, setChannelsLastFetched] = useState<Date | null>(null);
-  const [channelsFetchedCount, setChannelsFetchedCount] = useState<number | null>(null);
+  const [channelsFetchedCount, setChannelsFetchedCount] = useState<number | null>(
+    null
+  );
+
+  const handleListChannels = useCallback((result: unknown) => {
+    const parsed = parseChannelList(result);
+    setChannels(parsed);
+    setChannelsLastFetched(new Date());
+    setChannelsFetchedCount(parsed.length);
+    return parsed;
+  }, []);
 
   const { runRpc, rpcError, setRpcError, history, rawJson, busy, anyBusy } =
     useRpc({
@@ -63,13 +91,9 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
         if (method === "node_info") {
           const parsed = parseNodeInfo(result);
           setNodeSummary(parsed);
-          if (parsed?.lockArg) setCloseLockArg(parsed.lockArg);
         }
         if (method === "list_channels") {
-          const parsed = parseChannelList(result);
-          setChannels(parsed);
-          setChannelsLastFetched(new Date());
-          setChannelsFetchedCount(parsed.length);
+          handleListChannels(result);
         }
         if (method === "open_channel" && isRecord(result)) {
           const tempId =
@@ -81,11 +105,188 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
       },
     });
 
+  const refreshChannels = useCallback(() => {
+    void runRpc("My channels", "list_channels", [{}]);
+  }, [runRpc]);
+
+  const refreshNodeInfo = useCallback(() => {
+    void runRpc("Node info", "node_info", []);
+  }, [runRpc]);
+
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    refreshNodeInfo();
+    refreshChannels();
+  }, [refreshNodeInfo, refreshChannels]);
+
+  useEffect(() => {
+    const peer = openingPeerPubkey.trim();
+    if (!peer) return;
+    const match = findOpeningChannel(channels, openTempId, peer);
+    if (match && isChannelReady(match.stateLabel)) {
+      setOpenTempId(null);
+    }
+  }, [channels, openTempId, openingPeerPubkey]);
+
+  const openingChannel = useMemo(
+    () => findOpeningChannel(channels, openTempId, openingPeerPubkey),
+    [channels, openTempId, openingPeerPubkey]
+  );
+
+  const openingIsReady = openingChannel
+    ? isChannelReady(openingChannel.stateLabel)
+    : false;
+
+  const shouldPoll =
+    Boolean(openingPeerPubkey.trim()) &&
+    (Boolean(openTempId) || Boolean(openingChannel)) &&
+    !openingIsReady;
+
+  const { isPolling, timedOut } = useChannelPolling({
+    active: shouldPoll,
+    onPoll: refreshChannels,
+  });
+
   const { copy, copyFeedback } = useCopyWithFeedback();
+
+  const relays = PUBLIC_NODES[network];
+  const fundingHex = ckbAmountToFundingHex(fundingCkb);
+  const needsPubkeyWithAddr =
+    peerAddress.trim().startsWith("/") && !peerPubkey.trim();
+
+  const openBanner = useMemo(() => {
+    if (!openingPeerPubkey.trim() && !openTempId) return null;
+    if (timedOut) {
+      return {
+        kind: "err" as const,
+        label: "Still waiting for confirmation",
+        note:
+          "This is taking longer than usual. Check the CKB testnet explorer or try refreshing your channels.",
+      };
+    }
+    if (openingIsReady) {
+      return {
+        kind: "ok" as const,
+        label: "Channel ready",
+        note: "Your channel is open. You can send payments on the Send tab.",
+      };
+    }
+    if (openingChannel) {
+      return {
+        kind: "pending" as const,
+        label: "Opening channel…",
+        note: "Your channel is being set up on-chain. This page updates automatically.",
+      };
+    }
+    return {
+      kind: "pending" as const,
+      label: "Waiting for on-chain confirmation",
+      note: "Your channel request was sent. This page updates automatically when it appears below.",
+    };
+  }, [
+    openingPeerPubkey,
+    openTempId,
+    timedOut,
+    openingIsReady,
+    openingChannel,
+  ]);
+
+  const handleOpenChannel = async () => {
+    const pk = peerPubkey.trim();
+    const funding = ckbAmountToFundingHex(fundingCkb);
+    if (!pk || !funding) return;
+
+    setRpcError(null);
+    setOpeningPeerPubkey(pk);
+    setOpenTempId(null);
+
+    const connectParams = buildConnectPeerParams(peerAddress, peerPubkey);
+    if (connectParams.length === 0) {
+      setRpcError("Enter a peer public key or network address.");
+      return;
+    }
+
+    setOpenPhase("connecting");
+    const connectResult = await runRpc("Connect peer", "connect_peer", connectParams);
+    if (connectResult === undefined) {
+      setOpenPhase("idle");
+      return;
+    }
+
+    setOpenPhase("opening");
+    const openResult = await runRpc("Open channel", "open_channel", [
+      { pubkey: pk, funding_amount: funding, public: true },
+    ]);
+    setOpenPhase("idle");
+    if (openResult === undefined) return;
+
+    refreshChannels();
+  };
+
+  const handleCloseChannel = async (row: ParsedChannelRow) => {
+    setCloseRowMessage(null);
+    setCloseRowBusy(row.channelId);
+
+    let lockArg = nodeSummary?.lockArg ?? "";
+    if (!lockArg) {
+      try {
+        const result = await callFiberRpc("node_info", []);
+        const parsed = parseNodeInfo(result);
+        if (parsed) {
+          setNodeSummary(parsed);
+          lockArg = parsed.lockArg;
+        }
+      } catch (e) {
+        setCloseRowMessage({
+          channelId: row.channelId,
+          ok: false,
+          msg: String(e),
+        });
+        setCloseRowBusy(null);
+        setCloseConfirmId(null);
+        return;
+      }
+    }
+
+    const params: Record<string, unknown> = {
+      channel_id: row.channelId,
+      fee_rate: "0x3FC",
+    };
+    if (lockArg.trim()) {
+      params.close_script = {
+        code_hash: SECP256K1_CODE_HASH,
+        hash_type: "type",
+        args: lockArg.trim(),
+      };
+    }
+
+    try {
+      await callFiberRpc("shutdown_channel", [params]);
+      setCloseRowMessage({
+        channelId: row.channelId,
+        ok: true,
+        msg: "Close requested. Funds settle on-chain — check the explorer in a few minutes.",
+      });
+      setCloseConfirmId(null);
+      refreshChannels();
+    } catch (e) {
+      setCloseRowMessage({
+        channelId: row.channelId,
+        ok: false,
+        msg: String(e),
+      });
+    } finally {
+      setCloseRowBusy(null);
+    }
+  };
+
+  const rpcBlocked = !rpcReachable;
+  const openBusy = openPhase !== "idle" || anyBusy;
 
   return (
     <div className="pmt-layout">
-      {/* ── Status bar ── */}
       <div className="pmt-status-bar">
         <div className="pmt-status-stats">
           {nodeSummary ? (
@@ -114,7 +315,7 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
             </>
           ) : (
             <span className="pmt-status-empty">
-              Refresh node info to see your status.
+              Refresh status to see your node summary.
             </span>
           )}
         </div>
@@ -122,15 +323,15 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
           type="button"
           className="btn btn-ghost btn-sm"
           disabled={anyBusy}
-          onClick={() => void runRpc("Node info", "node_info", [])}
+          onClick={refreshNodeInfo}
         >
-          {busy("Node info") ? "Loading…" : "Refresh node info"}
+          {busy("Node info") ? "Loading…" : "Refresh status"}
         </button>
       </div>
 
       {rpcError && (
         <div className="network-inline-error" role="alert">
-          <strong className="network-inline-error-title">Last request failed</strong>
+          <strong className="network-inline-error-title">Something went wrong</strong>
           <p className="network-inline-error-body">{rpcError}</p>
           <button
             type="button"
@@ -143,95 +344,170 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
         </div>
       )}
 
-      {/* ══ Step 1: Open Channel ══ */}
       <section className="pmt-step panel">
         <div className="pmt-step-head">
-          <span className="pmt-step-num" aria-hidden>1</span>
           <div className="pmt-step-info">
-            <h2 className="pmt-step-title">Open a Channel</h2>
+            <h2 className="pmt-step-title">Open a channel</h2>
             <p className="pmt-step-desc">
-              After you connect to a peer under <strong>Setup</strong>, lock CKB here to
-              open a payment channel.
+              Enter your peer&apos;s address and public key — we&apos;ll connect and
+              open the channel for you in one step.
             </p>
           </div>
         </div>
 
         <div className="pmt-step-body">
-          <p className="field-hint" style={{ marginBottom: "0.85rem" }}>
-            Use <strong>Setup → Connect to a peer</strong> first so the handshake completes
-            before you open a channel.
-          </p>
+          {rpcBlocked ? (
+            <p className="field-hint field-hint-warn" role="note">
+              Start your node first, then return here to open a channel.
+            </p>
+          ) : null}
 
-          {/* Fund channel */}
-          <div className="pmt-substep">
-            <span className="pmt-substep-label">Peer pubkey & funding</span>
-            <div className="field">
-              <label className="field-label" htmlFor="open-pubkey">
-                Peer pubkey
-              </label>
-              <input
-                id="open-pubkey"
-                className="input input-mono"
-                value={openPubkey}
-                onChange={(e) => setOpenPubkey(e.target.value)}
-                placeholder="02… (same pubkey you connected to in Setup)"
-                spellCheck={false}
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="open-funding-ckb">
-                Funding amount (CKB)
-              </label>
-              <div className="inline-field">
-                <input
-                  id="open-funding-ckb"
-                  className="input"
-                  inputMode="decimal"
-                  value={fundingCkb}
-                  onChange={(e) => setFundingCkb(e.target.value)}
-                  placeholder="e.g. 500 or 400.25"
-                  spellCheck={false}
-                  aria-describedby="open-funding-hint"
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={
-                    anyBusy ||
-                    !openPubkey.trim() ||
-                    ckbAmountToFundingHex(fundingCkb) === null
-                  }
-                  onClick={() => {
-                    const fundingHex = ckbAmountToFundingHex(fundingCkb);
-                    if (!fundingHex) return;
-                    void runRpc("Open channel", "open_channel", [
-                      {
-                        pubkey: openPubkey.trim(),
-                        funding_amount: fundingHex,
-                        public: true,
-                      },
-                    ]);
-                  }}
-                >
-                  {busy("Open channel") ? "Opening…" : "Open Channel"}
-                </button>
-              </div>
-              <p id="open-funding-hint" className="field-hint">
-                Enter CKB to lock in the channel (up to 8 decimal places). Many peers
-                require hundreds of CKB for auto-accept — check their minimum. Sent to
-                RPC as shannons hex:{" "}
-                <code className="code-pill">
-                  {ckbAmountToFundingHex(fundingCkb) ?? "—"}
-                </code>
-                {fundingCkb.trim() && ckbAmountToFundingHex(fundingCkb) === null ? (
-                  <span className="field-hint-warn"> (fix the amount)</span>
-                ) : null}
+          <div className="pmt-relay-buttons">
+            <span className="pmt-relay-prefix">Quick pick ({network}):</span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={rpcBlocked || openBusy}
+              onClick={() => {
+                setPeerAddress(relays.node1.address);
+                setPeerPubkey(relays.node1.pubkey);
+              }}
+            >
+              Relay 1
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={rpcBlocked || openBusy}
+              onClick={() => {
+                setPeerAddress(relays.node2.address);
+                setPeerPubkey(relays.node2.pubkey);
+              }}
+            >
+              Relay 2
+            </button>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="open-peer-address">
+              Peer network address (optional)
+            </label>
+            <input
+              id="open-peer-address"
+              className="input input-mono"
+              value={peerAddress}
+              onChange={(e) => setPeerAddress(e.target.value)}
+              placeholder="/ip4/… or leave empty if using pubkey only"
+              spellCheck={false}
+              disabled={rpcBlocked}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="open-pubkey">
+              Peer public key
+            </label>
+            <input
+              id="open-pubkey"
+              className="input input-mono"
+              value={peerPubkey}
+              onChange={(e) => setPeerPubkey(e.target.value)}
+              placeholder="02… or 03…"
+              spellCheck={false}
+              disabled={rpcBlocked}
+            />
+            {needsPubkeyWithAddr ? (
+              <p className="field-hint field-hint-warn">
+                A public key is required when using a network address.
               </p>
-            </div>
+            ) : null}
+          </div>
 
-            {openTempId && (
-              <div className="pmt-result pmt-result-ok">
-                <span className="pmt-result-label">Channel opening — awaiting on-chain confirmation</span>
+          <div className="field">
+            <label className="field-label" htmlFor="open-funding-ckb">
+              Funding amount (CKB)
+            </label>
+            <div className="inline-field">
+              <input
+                id="open-funding-ckb"
+                className="input"
+                inputMode="decimal"
+                value={fundingCkb}
+                onChange={(e) => setFundingCkb(e.target.value)}
+                placeholder="e.g. 500 or 400.25"
+                spellCheck={false}
+                disabled={rpcBlocked}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={
+                  rpcBlocked ||
+                  openBusy ||
+                  !peerPubkey.trim() ||
+                  needsPubkeyWithAddr ||
+                  fundingHex === null
+                }
+                onClick={() => void handleOpenChannel()}
+              >
+                {openPhase === "connecting"
+                  ? "Connecting…"
+                  : openPhase === "opening"
+                    ? "Opening…"
+                    : "Open channel"}
+              </button>
+            </div>
+            <p className="field-hint">
+              Amount of CKB to lock in this channel (up to 8 decimal places). Many
+              peers require hundreds of CKB — check their minimum.
+              {fundingCkb.trim() && fundingHex === null ? (
+                <span className="field-hint-warn"> Fix the amount to continue.</span>
+              ) : null}
+            </p>
+          </div>
+
+          <details className="pmt-advanced-details">
+            <summary>Advanced details</summary>
+            <p className="field-hint">
+              Funding (shannons hex):{" "}
+              <code className="code-pill">{fundingHex ?? "—"}</code>
+            </p>
+            {openTempId ? (
+              <p className="field-hint">
+                Temporary channel ID:{" "}
+                <code className="code-pill code-pill-break">{openTempId}</code>
+              </p>
+            ) : null}
+            {openingChannel ? (
+              <p className="field-hint">
+                Raw state:{" "}
+                <code className="code-pill">{openingChannel.stateLabel}</code>
+              </p>
+            ) : null}
+          </details>
+
+          {openBanner ? (
+            <div
+              className={`pmt-result${
+                openBanner.kind === "ok"
+                  ? " pmt-result-ok"
+                  : openBanner.kind === "pending"
+                    ? " pmt-result-pending"
+                    : " pmt-connect-result-err"
+              }`}
+              role="status"
+            >
+              <div
+                className={
+                  openBanner.kind === "pending" ? "pmt-result-pending-head" : undefined
+                }
+              >
+                {openBanner.kind === "pending" ? (
+                  <span className="guided-spinner" aria-hidden />
+                ) : null}
+                <span className="pmt-result-label">{openBanner.label}</span>
+              </div>
+              {openTempId && openBanner.kind !== "ok" ? (
                 <div className="pmt-result-row">
                   <code className="code-pill code-pill-break">{openTempId}</code>
                   <button
@@ -239,7 +515,7 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
                     className="btn btn-ghost btn-sm"
                     onClick={() => void copy(openTempId)}
                   >
-                    Copy
+                    Copy ID
                   </button>
                   {copyFeedback ? (
                     <span className="save-toast" role="status">
@@ -247,25 +523,20 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
                     </span>
                   ) : null}
                 </div>
-                <p className="pmt-result-note">
-                  Refresh My Channels (step 2) until state shows{" "}
-                  <strong>CHANNEL_READY</strong> before making payments.
-                </p>
-              </div>
-            )}
-          </div>
+              ) : null}
+              <p className="pmt-result-note">{openBanner.note}</p>
+            </div>
+          ) : null}
         </div>
       </section>
 
-      {/* ══ Step 2: My Channels ══ */}
       <section className="pmt-step panel">
         <div className="pmt-step-head">
-          <span className="pmt-step-num" aria-hidden>2</span>
           <div className="pmt-step-info">
-            <h2 className="pmt-step-title">My Channels</h2>
+            <h2 className="pmt-step-title">My channels</h2>
             <p className="pmt-step-desc">
-              Monitor channel states and balances. Click <strong>Select</strong> on a
-              row to use it in step 3.
+              Channels you have opened. Use <strong>Close</strong> to settle on-chain
+              and reclaim your CKB.
             </p>
           </div>
         </div>
@@ -276,17 +547,20 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
               type="button"
               className="btn btn-secondary"
               disabled={anyBusy}
-              onClick={() => void runRpc("My channels", "list_channels", [{}])}
+              onClick={refreshChannels}
             >
-              {busy("My channels") ? "Loading…" : "Refresh Channels"}
+              {busy("My channels") ? "Loading…" : "Refresh channels"}
             </button>
-            {channelsLastFetched && !busy("My channels") && (
+            {isPolling ? (
+              <span className="pmt-refresh-stamp">Auto-refreshing…</span>
+            ) : null}
+            {channelsLastFetched && !busy("My channels") && !isPolling ? (
               <span className="pmt-refresh-stamp">
                 {channelsFetchedCount === 0
-                  ? `Refreshed at ${channelsLastFetched.toLocaleTimeString()} — 0 channels found`
-                  : `Refreshed at ${channelsLastFetched.toLocaleTimeString()} — ${channelsFetchedCount} channel${channelsFetchedCount === 1 ? "" : "s"}`}
+                  ? `Updated ${channelsLastFetched.toLocaleTimeString()} — no channels yet`
+                  : `Updated ${channelsLastFetched.toLocaleTimeString()} — ${channelsFetchedCount} channel${channelsFetchedCount === 1 ? "" : "s"}`}
               </span>
-            )}
+            ) : null}
           </div>
 
           {channels.length > 0 ? (
@@ -294,7 +568,6 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Channel ID</th>
                     <th>Peer</th>
                     <th>State</th>
                     <th>Local</th>
@@ -304,160 +577,130 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {channels.map((row, index) => (
-                    <tr
-                      key={`${row.channelId || "no-channel"}-${row.peerPubkey || "no-peer"}-${index}`}
-                      className={
-                        closeChannelId === row.channelId
-                          ? "pmt-row-selected"
-                          : undefined
-                      }
-                    >
-                      <td
-                        className="data-table-mono"
-                        title={row.channelId}
+                  {channels.map((row, index) => {
+                    const canClose = isChannelReady(row.stateLabel);
+                    const isConfirming = closeConfirmId === row.channelId;
+                    const isClosing = closeRowBusy === row.channelId;
+                    const rowMsg =
+                      closeRowMessage?.channelId === row.channelId
+                        ? closeRowMessage
+                        : null;
+
+                    return (
+                      <tr
+                        key={`${row.channelId || "no-channel"}-${row.peerPubkey || "no-peer"}-${index}`}
                       >
-                        {row.channelIdDisplay}
-                      </td>
-                      <td
-                        className="data-table-mono"
-                        title={row.peerPubkey}
-                      >
-                        {row.peerDisplay}
-                      </td>
-                      <td>
-                        <span
-                          className={`network-badge${
-                            row.stateLabel.includes("READY") ||
-                            row.stateLabel.includes("Ready")
-                              ? ""
-                              : " network-badge-muted"
-                          }`}
+                        <td
+                          className="data-table-mono"
+                          title={row.peerPubkey}
                         >
-                          {row.stateLabel.replace("CHANNEL_", "")}
-                        </span>
-                      </td>
-                      <td className="data-table-num">{row.localBalance}</td>
-                      <td className="data-table-num">{row.remoteBalance}</td>
-                      <td>
-                        <span className="network-badge network-badge-muted">
-                          {row.isUdt ? "UDT" : "CKB"}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          title="Select for closing"
-                          onClick={() => {
-                            setCloseChannelId(row.channelId);
-                            if (nodeSummary?.lockArg && !closeLockArg) {
-                              setCloseLockArg(nodeSummary.lockArg);
-                            }
-                          }}
-                        >
-                          Select
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          {row.peerDisplay}
+                        </td>
+                        <td>
+                          <span className={channelStateBadgeClass(row.stateLabel)}>
+                            {formatChannelStateForDisplay(row.stateLabel)}
+                          </span>
+                        </td>
+                        <td className="data-table-num">{row.localBalance}</td>
+                        <td className="data-table-num">{row.remoteBalance}</td>
+                        <td>
+                          <span className="network-badge network-badge-muted">
+                            {row.isUdt ? "UDT" : "CKB"}
+                          </span>
+                        </td>
+                        <td className="pmt-row-actions">
+                          {isConfirming ? (
+                            <div className="pmt-close-confirm">
+                              <span className="pmt-close-confirm-text">
+                                Close channel with {row.peerDisplay}?
+                              </span>
+                              <div className="pmt-close-confirm-btns">
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  disabled={isClosing}
+                                  onClick={() => setCloseConfirmId(null)}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-danger-ghost btn-sm"
+                                  disabled={isClosing}
+                                  onClick={() => void handleCloseChannel(row)}
+                                >
+                                  {isClosing ? "Closing…" : "Close channel"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-danger-ghost btn-sm"
+                                disabled={
+                                  !canClose || isClosing || anyBusy
+                                }
+                                title={
+                                  canClose
+                                    ? "Settle this channel on-chain"
+                                    : "Available when channel is ready"
+                                }
+                                onClick={() => {
+                                  setCloseConfirmId(row.channelId);
+                                  setCloseRowMessage(null);
+                                }}
+                              >
+                                Close
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                title="Copy channel ID"
+                                onClick={() => void copy(row.channelId)}
+                              >
+                                Copy ID
+                              </button>
+                            </>
+                          )}
+                          {rowMsg ? (
+                            <p
+                              className={
+                                rowMsg.ok
+                                  ? "field-hint pmt-row-msg-ok"
+                                  : "field-hint field-hint-warn pmt-row-msg"
+                              }
+                              role="status"
+                            >
+                              {rowMsg.msg}
+                            </p>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
             <p className="network-empty-hint pmt-empty-hint">
               {channelsLastFetched
-                ? "No channels returned — the channel may still be awaiting on-chain confirmation. Keep refreshing."
-                : "No channels loaded yet — click Refresh Channels."}
+                ? "No channels yet — if you just opened one, it may still be confirming on-chain. This list updates automatically."
+                : "Loading your channels…"}
             </p>
           )}
         </div>
       </section>
 
-      {/* ══ Step 3: Close Channel ══ */}
-      <section className="pmt-step panel">
-        <div className="pmt-step-head">
-          <span className="pmt-step-num" aria-hidden>3</span>
-          <div className="pmt-step-info">
-            <h2 className="pmt-step-title">Close Channel</h2>
-            <p className="pmt-step-desc">
-              Settle the channel on-chain and reclaim your CKB. All off-chain
-              payments are condensed into one L1 transaction.
-            </p>
-          </div>
-        </div>
-
-        <div className="pmt-step-body">
-          <div className="field">
-            <label className="field-label" htmlFor="close-id">
-              Channel ID
-            </label>
-            <input
-              id="close-id"
-              className="input input-mono"
-              value={closeChannelId}
-              onChange={(e) => setCloseChannelId(e.target.value)}
-              placeholder="0x… (click Select in My Channels above)"
-              spellCheck={false}
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="close-args">
-              Your CKB lock arg
-            </label>
-            <input
-              id="close-args"
-              className="input input-mono"
-              value={closeLockArg}
-              onChange={(e) => setCloseLockArg(e.target.value)}
-              placeholder="0x4d4ae… (auto-filled from node info)"
-              spellCheck={false}
-            />
-            <p className="field-hint">
-              Found under <code className="code-pill">default_funding_lock_script.args</code>{" "}
-              in your node info. Refreshing node info (status bar above) fills this
-              automatically.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-danger-ghost"
-            disabled={anyBusy || !closeChannelId.trim()}
-            onClick={() => {
-              const params: Record<string, unknown> = {
-                channel_id: closeChannelId.trim(),
-                fee_rate: "0x3FC",
-              };
-              if (closeLockArg.trim()) {
-                params.close_script = {
-                  code_hash: SECP256K1_CODE_HASH,
-                  hash_type: "type",
-                  args: closeLockArg.trim(),
-                };
-              }
-              void runRpc("Close channel", "shutdown_channel", [params]);
-            }}
-          >
-            {busy("Close channel") ? "Closing…" : "Close Channel"}
-          </button>
-          <p className="field-hint pmt-close-note">
-            After closing, check the CKB Testnet Explorer — you will see a new
-            settlement transaction to your address.
-          </p>
-        </div>
-      </section>
-
-      {/* ── Activity log ── */}
       {history.length > 0 && (
         <section className="panel pmt-activity">
           <div className="panel-head">
-            <h2 className="panel-title">Activity</h2>
+            <h2 className="panel-title">Recent activity</h2>
             <span className="panel-meta">
               {history.length} call{history.length !== 1 ? "s" : ""}
             </span>
           </div>
-          <ul className="network-history" aria-label="RPC activity">
+          <ul className="network-history" aria-label="Recent activity">
             {history.map((h) => (
               <li key={h.id} className="network-history-item">
                 <span
@@ -484,7 +727,7 @@ export function PaymentsTab({ callFiberRpc }: PaymentsTabProps) {
             ))}
           </ul>
           <details className="network-raw-details">
-            <summary>Raw JSON (last response)</summary>
+            <summary>Advanced: raw JSON (last response)</summary>
             <textarea
               className="response-view response-view-short"
               readOnly
