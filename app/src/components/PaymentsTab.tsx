@@ -12,29 +12,12 @@ import {
   type ParsedChannelRow,
   type ParsedNodeSummary,
 } from "../lib/networkRpcParse";
+import { ckbAmountToShannonsHex } from "../lib/ckbAmount";
 import { PUBLIC_NODES, type NetworkId } from "../lib/publicNodes";
 import { useRpc } from "../lib/useRpc";
 
 const SECP256K1_CODE_HASH =
   "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8";
-
-const SHANNONS_PER_CKB = 100_000_000n;
-
-/** Parse human CKB (e.g. `500`, `400.5`, up to 8 decimal places) → `0x…` shannons hex for RPC. */
-function ckbAmountToFundingHex(ckbText: string): string | null {
-  const t = ckbText.trim().replace(/,/g, "");
-  if (!t) return null;
-  const m = /^(\d+)(?:\.(\d{1,8}))?$/.exec(t);
-  if (!m) return null;
-  const whole = BigInt(m[1]);
-  const fracStr = m[2] ?? "";
-  if (fracStr.length > 8) return null;
-  const fracShannons =
-    fracStr === "" ? 0n : BigInt(fracStr) * 10n ** (8n - BigInt(fracStr.length));
-  const shannons = whole * SHANNONS_PER_CKB + fracShannons;
-  if (shannons <= 0n) return null;
-  return `0x${shannons.toString(16)}`;
-}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -152,7 +135,7 @@ export function PaymentsTab({
   const { copy, copyFeedback } = useCopyWithFeedback();
 
   const relays = PUBLIC_NODES[network];
-  const fundingHex = ckbAmountToFundingHex(fundingCkb);
+  const fundingHex = ckbAmountToShannonsHex(fundingCkb);
   const needsPubkeyWithAddr =
     peerAddress.trim().startsWith("/") && !peerPubkey.trim();
 
@@ -195,7 +178,7 @@ export function PaymentsTab({
 
   const handleOpenChannel = async () => {
     const pk = peerPubkey.trim();
-    const funding = ckbAmountToFundingHex(fundingCkb);
+    const funding = ckbAmountToShannonsHex(fundingCkb);
     if (!pk || !funding) return;
 
     setRpcError(null);

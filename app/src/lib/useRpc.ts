@@ -15,9 +15,16 @@ export type UseRpcOptions = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
   onResult?: (method: string, result: unknown) => void;
   onError?: (method: string, message: string) => void;
+  /** If set, shown in rpcError instead of the raw message. */
+  formatError?: (method: string, message: string) => string;
 };
 
-export function useRpc({ callFiberRpc, onResult, onError }: UseRpcOptions) {
+export function useRpc({
+  callFiberRpc,
+  onResult,
+  onError,
+  formatError,
+}: UseRpcOptions) {
   const [rpcBusy, setRpcBusy] = useState<string | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -51,7 +58,8 @@ export function useRpc({ callFiberRpc, onResult, onError }: UseRpcOptions) {
         return result;
       } catch (e) {
         const msg = String(e);
-        setRpcError(msg);
+        const display = formatError ? formatError(method, msg) : msg;
+        setRpcError(display);
         setRawJson(msg);
         onError?.(method, msg);
         pushHistory({
@@ -64,7 +72,7 @@ export function useRpc({ callFiberRpc, onResult, onError }: UseRpcOptions) {
         setRpcBusy(null);
       }
     },
-    [callFiberRpc, onResult, onError, pushHistory],
+    [callFiberRpc, onResult, onError, formatError, pushHistory],
   );
 
   const busy = (label: string) => rpcBusy === label;

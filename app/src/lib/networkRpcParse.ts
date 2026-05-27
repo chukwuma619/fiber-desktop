@@ -1,5 +1,7 @@
 /** Best-effort parsing of Fiber JSON-RPC `result` objects (API may evolve). */
 
+import type { InvoiceDisplayStatus } from "./recentInvoices";
+
 export type ParsedNodeSummary = {
   version: string;
   pubkey: string;
@@ -272,6 +274,78 @@ export function pickInvoiceAddress(result: unknown): string | null {
   }
   const a = pickStr(result.invoice_address);
   return a && a.length > 0 ? a : null;
+}
+
+export function summarizeInvoiceStatus(status: unknown): string {
+  if (typeof status === "string") {
+    return status;
+  }
+  if (isRecord(status)) {
+    const keys = Object.keys(status);
+    if (keys.length === 1) {
+      return keys[0] ?? "";
+    }
+  }
+  return "";
+}
+
+export function invoiceStatusToDisplay(raw: string): InvoiceDisplayStatus {
+  const u = raw.trim().toLowerCase();
+  if (u === "paid") return "Paid";
+  if (u === "expired") return "Expired";
+  if (u === "cancelled" || u === "canceled") return "Cancelled";
+  return "Pending";
+}
+
+export function invoiceStatusBadgeClass(
+  status: InvoiceDisplayStatus
+): string {
+  switch (status) {
+    case "Paid":
+      return "network-badge";
+    case "Pending":
+      return "network-badge network-badge-warn";
+    case "Expired":
+    case "Cancelled":
+      return "network-badge network-badge-muted";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+export function parseNewInvoiceResult(result: unknown): {
+  invoiceAddress: string | null;
+  paymentHash: string | null;
+} {
+  const invoiceAddress = pickInvoiceAddress(result);
+  let paymentHash: string | null = null;
+  if (!isRecord(result)) {
+    return { invoiceAddress, paymentHash };
+  }
+  if (typeof result.payment_hash === "string") {
+    paymentHash = result.payment_hash;
+  }
+  const inv = result.invoice;
+  if (isRecord(inv)) {
+    if (typeof inv.payment_hash === "string") {
+      paymentHash = inv.payment_hash;
+    }
+    const data = inv.data;
+    if (isRecord(data) && typeof data.payment_hash === "string") {
+      paymentHash = data.payment_hash;
+    }
+  }
+  return { invoiceAddress, paymentHash };
+}
+
+export function parseGetInvoiceStatus(result: unknown): string | null {
+  if (!isRecord(result)) {
+    return null;
+  }
+  const raw = summarizeInvoiceStatus(result.status);
+  return raw || null;
 }
 
 export function summarizeRpcResult(method: string, result: unknown): string {

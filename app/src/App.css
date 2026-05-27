@@ -2176,6 +2176,22 @@ select.input {
   line-height: 1.35;
 }
 
+.pmt-invoice-time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.pmt-invoice-desc {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pmt-result-label {
   font-size: 0.72rem;
   font-weight: 700;
