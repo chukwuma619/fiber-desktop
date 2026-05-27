@@ -1,40 +1,19 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import {
   FIBER_DESKTOP_REPO_URL,
   fiberDesktopReleasesUrl,
 } from "../constants/marketing";
+import { useLatestReleaseDownload } from "../hooks/useLatestReleaseDownload";
 import type { ClientOs } from "../lib/clientOs";
-import { detectClientOs } from "../lib/clientOs";
-import {
-  defaultFiberDesktopRepoSlug,
-  fetchLatestGithubRelease,
-  type GithubLatestRelease,
-} from "../lib/githubRelease";
 import {
   formatFileSize,
   installerKindLabel,
-  installersFromRelease,
   osLabel,
-  pickRecommendedInstaller,
   type InstallerRow,
 } from "../lib/releaseInstallers";
 import "../DownloadPage.css";
 import { GuideChrome } from "./guides/GuideChrome";
 import { Callout } from "./guides/guidePrimitives";
-
-function noopSubscribe(): () => void {
-  return () => {};
-}
-
-function getServerOs(): ClientOs {
-  return "unknown";
-}
-
-type LoadState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "ok"; release: GithubLatestRelease; rows: InstallerRow[] }
-  | { status: "error"; message: string; retryKey: number };
 
 function groupByOs(rows: InstallerRow[]): Record<ClientOs, InstallerRow[]> {
   const buckets: Record<ClientOs, InstallerRow[]> = {
@@ -51,47 +30,7 @@ function groupByOs(rows: InstallerRow[]): Record<ClientOs, InstallerRow[]> {
 
 export function DownloadPage() {
   const releasesPageUrl = fiberDesktopReleasesUrl();
-  const slug = useMemo(() => defaultFiberDesktopRepoSlug(), []);
-  const clientOs = useSyncExternalStore(noopSubscribe, detectClientOs, getServerOs);
-  const [state, setState] = useState<LoadState>({ status: "idle" });
-  const [retryKey, setRetryKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-      if (!slug) {
-        setState({
-          status: "error",
-          message:
-            "Release source is not a github.com URL. Open the releases page manually.",
-          retryKey,
-        });
-        return;
-      }
-      setState({ status: "loading" });
-      try {
-        const release = await fetchLatestGithubRelease(slug);
-        if (cancelled) return;
-        const rows = installersFromRelease(release);
-        setState({ status: "ok", release, rows });
-      } catch (e) {
-        if (cancelled) return;
-        const message =
-          e instanceof Error ? e.message : "Could not load the latest release.";
-        setState({ status: "error", message, retryKey });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug, retryKey]);
-
-  const recommended = useMemo(() => {
-    if (state.status !== "ok") return undefined;
-    return pickRecommendedInstaller(clientOs, state.rows);
-  }, [state, clientOs]);
+  const { clientOs, state, recommended, retry } = useLatestReleaseDownload();
 
   const grouped = useMemo(() => {
     if (state.status !== "ok") return null;
@@ -121,7 +60,7 @@ export function DownloadPage() {
           and download the file for your system.{" "}
           <button
             type="button"
-            onClick={() => setRetryKey((k) => k + 1)}
+            onClick={retry}
             style={{ marginLeft: "0.5rem", cursor: "pointer", textDecoration: "underline", background: "none", border: "none", padding: 0, color: "inherit", font: "inherit" }}
           >
             Try again

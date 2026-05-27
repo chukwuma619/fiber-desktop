@@ -3,6 +3,7 @@ import {
   FIBER_DESKTOP_REPO_URL,
   fiberDesktopReleasesUrl,
 } from "../constants/marketing";
+import { LandingDownloadCta } from "./LandingDownloadCta";
 
 export function LandingPage() {
   const releasesUrl = fiberDesktopReleasesUrl();
@@ -29,10 +30,7 @@ export function LandingPage() {
                 touching the terminal.
               </p>
               <div className="landing-cta-row">
-                <Link className="landing-cta-primary" to="/download">
-                  <span className="landing-cta-label">Download Fiber Desktop</span>
-                  <span className="landing-cta-meta">macOS &amp; Windows · free</span>
-                </Link>
+                <LandingDownloadCta />
                 <a className="landing-cta-secondary" href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md" target="_blank" rel="noreferrer">
                   Node setup guide
                 </a>
@@ -172,10 +170,7 @@ export function LandingPage() {
             Download the latest release and follow the in-app guided setup.
           </p>
           <div className="landing-cta-row landing-cta-row-center">
-            <Link className="landing-cta-primary" to="/download">
-              <span className="landing-cta-label">Download Fiber Desktop</span>
-              <span className="landing-cta-meta">Pick your OS · free</span>
-            </Link>
+            <LandingDownloadCta centered />
             <a className="landing-cta-ghost" href="https://docs.fiber.world/" target="_blank" rel="noreferrer">
               Read the docs
             </a>
