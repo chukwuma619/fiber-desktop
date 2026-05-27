@@ -114,7 +114,7 @@ export function HowToSetupPage() {
             <h3>More help</h3>
             <p>
               <a
-                href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
+                href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
                 target="_blank"
                 rel="noreferrer"
               >

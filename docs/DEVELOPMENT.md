@@ -274,7 +274,7 @@ When you open the app for the first time:
 3. **Password** — the password stored in the app encrypts your key file when the node runs; it does not create the key.
 4. **Start the node** from Overview or the Node tab, then use the Network tab to connect to relays.
 
-For more detail, see the [Fiber testnet nodes / key setup guide](https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md) and [Fiber documentation](https://www.fiber.world/docs).
+For more detail, see the [Fiber testnet nodes / key setup guide](https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md) and [Fiber documentation](https://www.fiber.world/docs).
 
 **Key file path:** `{your FNN data directory}/ckb/key` (single line of hex).
 

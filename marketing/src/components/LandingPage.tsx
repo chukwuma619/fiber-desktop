@@ -33,7 +33,7 @@ export function LandingPage() {
                   <span className="landing-cta-label">Download Fiber Desktop</span>
                   <span className="landing-cta-meta">macOS &amp; Windows · free</span>
                 </Link>
-                <a className="landing-cta-secondary" href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md" target="_blank" rel="noreferrer">
+                <a className="landing-cta-secondary" href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md" target="_blank" rel="noreferrer">
                   Node setup guide
                 </a>
               </div>

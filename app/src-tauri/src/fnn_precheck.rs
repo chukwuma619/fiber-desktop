@@ -18,7 +18,7 @@ pub fn check_ckb_node_key_ready(data_dir: &str) -> Result<(), String> {
             "Missing CKB private key file at {}.\n\n\
 Fiber (fnn) needs a one-line secp256k1 private key (hex) at that path—usually from `ckb-cli account export`. \
 The app password only encrypts this file; it does not create the key.\n\n\
-Step-by-step: https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md",
+Step-by-step: https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md",
             key_path.display()
         ));
     }

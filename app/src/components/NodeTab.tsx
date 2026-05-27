@@ -117,7 +117,7 @@ export function NodeTab({
           Exporting a key and testnet walkthrough:{" "}
           <a
             className="inline-link"
-            href="https://github.com/nervosnetwork/fiber/blob/develop/docs/testnet-nodes.md"
+            href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
             target="_blank"
             rel="noreferrer"
           >
