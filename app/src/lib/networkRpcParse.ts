@@ -33,6 +33,8 @@ export type ParsedGraphNodeRow = {
   nodeName: string;
   version: string;
   addressCount: number;
+  addresses: string[];
+  primaryAddress: string | null;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -256,13 +258,22 @@ export function parseGraphNodeList(result: unknown): ParsedGraphNodeRow[] {
       continue;
     }
     const pubkey = pickStr(item.pubkey) ?? "";
-    const addresses = Array.isArray(item.addresses) ? item.addresses.length : 0;
+    const addresses: string[] = [];
+    if (Array.isArray(item.addresses)) {
+      for (const a of item.addresses) {
+        if (typeof a === "string" && a.length > 0) {
+          addresses.push(a);
+        }
+      }
+    }
     rows.push({
       pubkey,
       pubkeyDisplay: pubkey ? truncateMiddle(pubkey) : "—",
       nodeName: pickStr(item.node_name) ?? "—",
       version: pickStr(item.version) ?? "—",
-      addressCount: addresses,
+      addressCount: addresses.length,
+      addresses,
+      primaryAddress: addresses[0] ?? null,
     });
   }
   return rows;

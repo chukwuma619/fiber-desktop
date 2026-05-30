@@ -26,9 +26,14 @@ export const APP_TABS = [
     hint: "Pay an invoice from another node",
   },
   {
+    id: "activity" as const,
+    label: "Activity",
+    hint: "Payment and channel history",
+  },
+  {
     id: "network" as const,
     label: "Network",
-    hint: "Node info and channel status",
+    hint: "Node info, peers, and channels",
   },
 ];
 

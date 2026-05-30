@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useInvoiceStatusPolling } from "../hooks/useInvoiceStatusPolling";
 import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
+import { recordActivity } from "../lib/activityHistory";
 import { ckbAmountToShannonsHex } from "../lib/ckbAmount";
+import { sendDesktopNotification } from "../lib/desktopNotify";
 import {
   invoiceStatusBadgeClass,
   invoiceStatusToDisplay,
@@ -19,16 +21,27 @@ import {
   type RecentInvoice,
 } from "../lib/recentInvoices";
 import { formatRpcUserError } from "../lib/rpcUserError";
+import type { NodePresenceKind } from "../lib/nodePresence";
 import { useRpc } from "../lib/useRpc";
+import { NodeUnreachableBanner } from "./NodeUnreachableBanner";
 
 const INVOICE_PRESETS_CKB = ["1", "10", "100"];
 
 export type ReceiveTabProps = {
   netId: NetworkId;
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
+  rpcReachable: boolean;
+  nodePresence: NodePresenceKind;
+  onGoToNode?: () => void;
 };
 
-export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
+export function ReceiveTab({
+  netId,
+  callFiberRpc,
+  rpcReachable,
+  nodePresence,
+  onGoToNode,
+}: ReceiveTabProps) {
   const currency = netId === "mainnet" ? "Fibb" : "Fibt";
 
   const [invoiceAmountCkb, setInvoiceAmountCkb] = useState("1");
@@ -77,7 +90,22 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
     setRecentInvoices((prev) => {
       const next = prev.map((inv) => {
         const hit = valid.find((u) => u.id === inv.id);
-        return hit ? { ...inv, status: hit.status } : inv;
+        if (!hit) return inv;
+        if (inv.status === "Pending" && hit.status === "Paid") {
+          recordActivity({
+            kind: "invoice_paid",
+            title: "Invoice paid",
+            detail: inv.description || inv.paymentHash,
+            amountCkb: inv.amountCkb,
+          });
+          void sendDesktopNotification(
+            "Invoice paid",
+            inv.amountCkb
+              ? `Received ${inv.amountCkb} CKB`
+              : "An invoice was paid.",
+          );
+        }
+        return { ...inv, status: hit.status };
       });
       saveRecentInvoices(next);
       return next;
@@ -115,6 +143,12 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
               saveRecentInvoices(next);
               return next;
             });
+            recordActivity({
+              kind: "invoice_created",
+              title: "Invoice created",
+              detail: invoiceDesc.trim() || undefined,
+              amountCkb: invoiceAmountCkb.trim(),
+            });
             if (paymentHash) {
               void refreshPendingStatuses();
             }
@@ -135,8 +169,15 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
     void runRpc("Create invoice", "new_invoice", [params]);
   };
 
+  const rpcBlocked = !rpcReachable;
+
   return (
     <div className="pmt-layout">
+      <NodeUnreachableBanner
+        nodePresence={nodePresence}
+        rpcReachable={rpcReachable}
+        onGoToNode={onGoToNode}
+      />
       {rpcError && (
         <div className="network-inline-error" role="alert">
           <strong className="network-inline-error-title">
@@ -211,7 +252,7 @@ export function ReceiveTab({ netId, callFiberRpc }: ReceiveTabProps) {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={anyBusy || fundingHex === null}
+            disabled={rpcBlocked || anyBusy || fundingHex === null}
             onClick={handleCreateInvoice}
           >
             {busy("Create invoice") ? "Generating…" : "Create invoice"}

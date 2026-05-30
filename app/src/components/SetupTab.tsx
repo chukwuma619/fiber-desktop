@@ -1,6 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useState } from "react";
 import { usePathPickers } from "../hooks/usePathPickers";
+import { useBackgroundMode } from "../hooks/useBackgroundMode";
 import { usePlatformLabels } from "../hooks/usePlatformLabels";
+import {
+  desktopNotificationsEnabled,
+  setDesktopNotificationsEnabled,
+} from "../lib/desktopNotify";
 import type { NetworkId } from "../lib/publicNodes";
 import { callFiberRpc } from "../lib/fiberRpc";
 import type {
@@ -9,6 +15,7 @@ import type {
   Network,
 } from "../types/settings";
 import { fnnBinarySourceLabel } from "../types/settings";
+import { HelpLinksPanel } from "./HelpLinksPanel";
 import { SetupConnectPeerPanel } from "./SetupConnectPeerPanel";
 
 type SetupTabProps = {
@@ -52,6 +59,10 @@ export function SetupTab({
 }: SetupTabProps) {
   const platform = usePlatformLabels();
   const { pickDirectory, pickConfigFile, pickFnnBinary } = usePathPickers();
+  const { runInBackground, setRunInBackground } = useBackgroundMode();
+  const [notifyEnabled, setNotifyEnabledState] = useState(
+    desktopNotificationsEnabled,
+  );
 
   if (!settings) {
     return <p className="loading-text">Loading settings…</p>;
@@ -347,6 +358,50 @@ export function SetupTab({
           </section>
         </div>
       </details>
+
+      <section className="panel">
+        <h2 className="panel-title">App behavior</h2>
+        <p className="panel-lead panel-lead-tight">
+          Control background operation and desktop alerts for payments and
+          channels.
+        </p>
+        <div className="pref-list">
+          <label className="pref-row">
+            <input
+              type="checkbox"
+              checked={runInBackground}
+              onChange={(e) => setRunInBackground(e.target.checked)}
+            />
+            <span className="pref-row-text">
+              <strong>Keep node running when window is closed</strong>
+              <span className="pref-row-hint">
+                Closing the window hides the app to the system tray instead of
+                quitting. Use Quit from the tray menu to fully exit.
+              </span>
+            </span>
+          </label>
+          <label className="pref-row">
+            <input
+              type="checkbox"
+              checked={notifyEnabled}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setNotifyEnabledState(on);
+                setDesktopNotificationsEnabled(on);
+              }}
+            />
+            <span className="pref-row-text">
+              <strong>Desktop notifications</strong>
+              <span className="pref-row-hint">
+                Alert when invoices are paid, payments are sent, or channels
+                change state.
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <HelpLinksPanel compact />
 
       <section className="panel">
         <h2 className="panel-title">Security</h2>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChannelPolling } from "../hooks/useChannelPolling";
 import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
+import { recordActivity } from "../lib/activityHistory";
 import { buildConnectPeerParams } from "../lib/connectPeerParams";
 import {
   channelStateBadgeClass,
@@ -14,6 +15,7 @@ import {
 } from "../lib/networkRpcParse";
 import { ckbAmountToShannonsHex } from "../lib/ckbAmount";
 import { PUBLIC_NODES, type NetworkId } from "../lib/publicNodes";
+import { sendDesktopNotification } from "../lib/desktopNotify";
 import { useRpc } from "../lib/useRpc";
 
 const SECP256K1_CODE_HASH =
@@ -205,6 +207,16 @@ export function PaymentsTab({
     setOpenPhase("idle");
     if (openResult === undefined) return;
 
+    recordActivity({
+      kind: "channel_opened",
+      title: "Channel opening",
+      detail: pk,
+      amountCkb: fundingCkb.trim(),
+    });
+    void sendDesktopNotification(
+      "Channel opening",
+      `Opening channel with ${pk.slice(0, 12)}…`,
+    );
     refreshChannels();
   };
 
@@ -247,6 +259,15 @@ export function PaymentsTab({
 
     try {
       await callFiberRpc("shutdown_channel", [params]);
+      recordActivity({
+        kind: "channel_closed",
+        title: "Channel close requested",
+        detail: row.peerPubkey,
+      });
+      void sendDesktopNotification(
+        "Channel closing",
+        "Close requested — funds will settle on-chain.",
+      );
       setCloseRowMessage({
         channelId: row.channelId,
         ok: true,

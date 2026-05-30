@@ -1,11 +1,16 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { buildConnectPeerParams } from "../lib/connectPeerParams";
 import {
   parseChannelList,
+  parseGraphNodeList,
   parseNodeInfo,
   summarizeRpcResult,
   type ParsedChannelRow,
+  type ParsedGraphNodeRow,
   type ParsedNodeSummary,
 } from "../lib/networkRpcParse";
+import type { NodePresenceKind } from "../lib/nodePresence";
+import { NodeUnreachableBanner } from "./NodeUnreachableBanner";
 
 const HISTORY_CAP = 16;
 
@@ -19,13 +24,29 @@ type RpcHistoryItem = {
 
 export type NetworkTabProps = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
+  rpcReachable: boolean;
+  nodePresence: NodePresenceKind;
+  onGoToNode?: () => void;
 };
 
-export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
+export function NetworkTab({
+  callFiberRpc,
+  rpcReachable,
+  nodePresence,
+  onGoToNode,
+}: NetworkTabProps) {
   const [rpcBusy, setRpcBusy] = useState<string | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
   const [nodeSummary, setNodeSummary] = useState<ParsedNodeSummary | null>(null);
   const [channels, setChannels] = useState<ParsedChannelRow[]>([]);
+  const [graphNodes, setGraphNodes] = useState<ParsedGraphNodeRow[]>([]);
+  const [graphFilter, setGraphFilter] = useState("");
+  const [connectBusyPubkey, setConnectBusyPubkey] = useState<string | null>(null);
+  const [connectMessage, setConnectMessage] = useState<{
+    pubkey: string;
+    ok: boolean;
+    msg: string;
+  } | null>(null);
   const [history, setHistory] = useState<RpcHistoryItem[]>([]);
   const [rawJson, setRawJson] = useState<string>("");
 
@@ -54,7 +75,9 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
         setRawJson(JSON.stringify(result, null, 2));
         if (method === "node_info") setNodeSummary(parseNodeInfo(result));
         if (method === "list_channels") setChannels(parseChannelList(result));
+        if (method === "graph_nodes") setGraphNodes(parseGraphNodeList(result));
         pushHistory({ label, ok: true, summary: summarizeRpcResult(method, result) });
+        return result;
       } catch (e) {
         const msg = String(e);
         setRpcError(msg);
@@ -64,6 +87,7 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
           ok: false,
           summary: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg,
         });
+        return undefined;
       } finally {
         setRpcBusy(null);
       }
@@ -71,10 +95,64 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
     [callFiberRpc, pushHistory],
   );
 
-  const anyBusy = !!rpcBusy;
+  const filteredGraphNodes = useMemo(() => {
+    const q = graphFilter.trim().toLowerCase();
+    if (!q) return graphNodes;
+    return graphNodes.filter(
+      (n) =>
+        n.pubkey.toLowerCase().includes(q) ||
+        n.nodeName.toLowerCase().includes(q),
+    );
+  }, [graphFilter, graphNodes]);
+
+  const handleConnectGraphNode = async (row: ParsedGraphNodeRow) => {
+    if (!row.primaryAddress) {
+      setConnectMessage({
+        pubkey: row.pubkey,
+        ok: false,
+        msg: "This node has no advertised address in the graph.",
+      });
+      return;
+    }
+    setConnectBusyPubkey(row.pubkey);
+    setConnectMessage(null);
+    const params = buildConnectPeerParams(row.primaryAddress, row.pubkey);
+    try {
+      await callFiberRpc("connect_peer", params);
+      setConnectMessage({
+        pubkey: row.pubkey,
+        ok: true,
+        msg: "Connected. Open a channel from the Channels tab if needed.",
+      });
+      pushHistory({
+        label: "Connect peer",
+        ok: true,
+        summary: `Connected to ${row.pubkeyDisplay}`,
+      });
+    } catch (e) {
+      const msg = String(e);
+      setConnectMessage({ pubkey: row.pubkey, ok: false, msg });
+      pushHistory({
+        label: "Connect peer",
+        ok: false,
+        summary: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg,
+      });
+    } finally {
+      setConnectBusyPubkey(null);
+    }
+  };
+
+  const anyBusy = !!rpcBusy || connectBusyPubkey != null;
+  const rpcBlocked = !rpcReachable;
 
   return (
     <div className="panel-stack">
+      <NodeUnreachableBanner
+        nodePresence={nodePresence}
+        rpcReachable={rpcReachable}
+        onGoToNode={onGoToNode}
+      />
+
       {rpcError && (
         <div className="network-inline-error" role="alert">
           <strong className="network-inline-error-title">Last request failed</strong>
@@ -90,14 +168,13 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
         </div>
       )}
 
-      {/* Node info */}
       <section className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Node info</h2>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            disabled={anyBusy}
+            disabled={rpcBlocked || anyBusy}
             onClick={() => void runRpc("Node info", "node_info", [])}
           >
             {rpcBusy === "Node info" ? "Loading…" : "Refresh"}
@@ -140,14 +217,114 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
         )}
       </section>
 
-      {/* Channels */}
+      <section className="panel">
+        <div className="panel-head">
+          <h2 className="panel-title">Network graph</h2>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={rpcBlocked || anyBusy}
+            onClick={() => void runRpc("Graph nodes", "graph_nodes", [{}])}
+          >
+            {rpcBusy === "Graph nodes" ? "Loading…" : "Load peers"}
+          </button>
+        </div>
+        <p className="panel-lead panel-lead-tight">
+          Browse public nodes from the Fiber graph and connect with one click.
+        </p>
+        {graphNodes.length > 0 ? (
+          <>
+            <div className="field" style={{ marginTop: "0.65rem" }}>
+              <label className="field-label" htmlFor="graph-filter">
+                Filter by name or pubkey
+              </label>
+              <input
+                id="graph-filter"
+                className="input input-mono"
+                value={graphFilter}
+                onChange={(e) => setGraphFilter(e.target.value)}
+                placeholder="Search…"
+                spellCheck={false}
+              />
+            </div>
+            <div className="data-table-wrap" style={{ marginTop: "0.75rem" }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Pubkey</th>
+                    <th>Addresses</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredGraphNodes.slice(0, 40).map((row) => (
+                    <tr key={row.pubkey}>
+                      <td>{row.nodeName}</td>
+                      <td className="data-table-mono" title={row.pubkey}>
+                        {row.pubkeyDisplay}
+                      </td>
+                      <td className="data-table-num">{row.addressCount}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={
+                            rpcBlocked ||
+                            !row.primaryAddress ||
+                            connectBusyPubkey === row.pubkey
+                          }
+                          onClick={() => void handleConnectGraphNode(row)}
+                        >
+                          {connectBusyPubkey === row.pubkey
+                            ? "Connecting…"
+                            : "Connect"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filteredGraphNodes.length > 40 ? (
+              <p className="field-hint" style={{ marginTop: "0.5rem" }}>
+                Showing first 40 matches — refine your filter to narrow results.
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="network-empty-hint">
+            Click <strong>Load peers</strong> to fetch nodes from the network graph.
+          </p>
+        )}
+        {connectMessage ? (
+          <div
+            className={`pmt-connect-result${connectMessage.ok ? " pmt-connect-result-ok" : " pmt-connect-result-err"}`}
+            role="status"
+            style={{ marginTop: "0.75rem" }}
+          >
+            <span className="pmt-connect-result-icon" aria-hidden>
+              {connectMessage.ok ? "✓" : "✗"}
+            </span>
+            <span className="pmt-connect-result-msg">{connectMessage.msg}</span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setConnectMessage(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+      </section>
+
       <section className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Channels</h2>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            disabled={anyBusy}
+            disabled={rpcBlocked || anyBusy}
             onClick={() => void runRpc("My channels", "list_channels", [{}])}
           >
             {rpcBusy === "My channels" ? "Loading…" : "Refresh"}
@@ -211,7 +388,6 @@ export function NetworkTab({ callFiberRpc }: NetworkTabProps) {
         )}
       </section>
 
-      {/* Recent activity */}
       <section className="panel">
         <div className="panel-head">
           <h2 className="panel-title">Recent activity</h2>

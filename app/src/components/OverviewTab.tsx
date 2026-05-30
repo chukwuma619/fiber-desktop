@@ -6,6 +6,7 @@ import {
 } from "../lib/nodePresence";
 import type { AppSettings, CkbKeyStatus, FnnBinaryStatus, FnnStatusView, PinnedFnnInfo } from "../types/settings";
 import { fnnBinarySourceLabel } from "../types/settings";
+import { HelpLinksPanel } from "./HelpLinksPanel";
 import { StartStopNodeButton } from "./StartStopNodeButton";
 
 type OverviewTabProps = {
@@ -18,7 +19,7 @@ type OverviewTabProps = {
   fnnBinaryStatus: FnnBinaryStatus | null;
   onOpenGuided: () => void;
   onMarkGuidanceComplete: () => void;
-  onGoToTab: (tab: "setup" | "node" | "network") => void;
+  onGoToTab: (tab: "setup" | "node" | "network" | "activity") => void;
   onStartNode: () => void | Promise<void>;
   onStopNode: () => void | Promise<void>;
 };
@@ -210,11 +211,26 @@ export function OverviewTab({
             </span>
             <span className="next-step-card-title">Network</span>
             <span className="next-step-card-desc">
-              Relays, channels, payments
+              Peers, graph, and channels
+            </span>
+          </button>
+          <button
+            type="button"
+            className="next-step-card"
+            onClick={() => onGoToTab("activity")}
+          >
+            <span className="next-step-card-icon" aria-hidden>
+              ◷
+            </span>
+            <span className="next-step-card-title">Activity</span>
+            <span className="next-step-card-desc">
+              Payment and channel history
             </span>
           </button>
         </div>
       </section>
+
+      <HelpLinksPanel compact />
     </div>
   );
 }

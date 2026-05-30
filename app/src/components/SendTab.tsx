@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
+import { recordActivity } from "../lib/activityHistory";
+import { sendDesktopNotification } from "../lib/desktopNotify";
+import type { NodePresenceKind } from "../lib/nodePresence";
 import { useRpc } from "../lib/useRpc";
+import { NodeUnreachableBanner } from "./NodeUnreachableBanner";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -8,9 +12,17 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 export type SendTabProps = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
+  rpcReachable: boolean;
+  nodePresence: NodePresenceKind;
+  onGoToNode?: () => void;
 };
 
-export function SendTab({ callFiberRpc }: SendTabProps) {
+export function SendTab({
+  callFiberRpc,
+  rpcReachable,
+  nodePresence,
+  onGoToNode,
+}: SendTabProps) {
   const [payInvoice, setPayInvoice] = useState("");
   const [lastPayHash, setLastPayHash] = useState<string | null>(null);
   const [verifyHash, setVerifyHash] = useState("");
@@ -26,6 +38,15 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
           if (hash) {
             setLastPayHash(hash);
             setVerifyHash(hash);
+            recordActivity({
+              kind: "payment_sent",
+              title: "Payment submitted",
+              detail: hash,
+            });
+            void sendDesktopNotification(
+              "Payment sent",
+              "Your payment was submitted to the network.",
+            );
           }
         }
         if (method === "get_payment" && isRecord(result)) {
@@ -38,8 +59,15 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
 
   const { copy, copyFeedback } = useCopyWithFeedback();
 
+  const rpcBlocked = !rpcReachable;
+
   return (
     <div className="pmt-layout">
+      <NodeUnreachableBanner
+        nodePresence={nodePresence}
+        rpcReachable={rpcReachable}
+        onGoToNode={onGoToNode}
+      />
       {rpcError && (
         <div className="network-inline-error" role="alert">
           <strong className="network-inline-error-title">Request failed</strong>
@@ -86,7 +114,7 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={anyBusy || !payInvoice.trim()}
+            disabled={rpcBlocked || anyBusy || !payInvoice.trim()}
             onClick={() =>
               void runRpc("Send payment", "send_payment", [
                 { invoice: payInvoice.trim() },
@@ -153,7 +181,7 @@ export function SendTab({ callFiberRpc }: SendTabProps) {
               <button
                 type="button"
                 className="btn btn-secondary"
-                disabled={anyBusy || !verifyHash.trim()}
+                disabled={rpcBlocked || anyBusy || !verifyHash.trim()}
                 onClick={() =>
                   void runRpc("Get payment", "get_payment", [
                     { payment_hash: verifyHash.trim() },

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
+import { ActivityTab } from "./components/ActivityTab";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
 import { NetworkTab } from "./components/NetworkTab";
 import { NodeTab } from "./components/NodeTab";
@@ -9,8 +10,10 @@ import { ReceiveTab } from "./components/ReceiveTab";
 import { SendTab } from "./components/SendTab";
 import { SetupTab } from "./components/SetupTab";
 import { APP_TABS, type TabId } from "./constants/appTabs";
+import { HELP_GUIDES } from "./constants/helpLinks";
 import { useAppSecurity } from "./hooks/useAppSecurity";
 import { useAppSettings } from "./hooks/useAppSettings";
+import { useBackgroundMode } from "./hooks/useBackgroundMode";
 import { useCkbKey } from "./hooks/useCkbKey";
 import { useFnnBinary } from "./hooks/useFnnBinary";
 import { useGuidedSetup } from "./hooks/useGuidedSetup";
@@ -78,6 +81,8 @@ function App() {
     dismissGuidedForLater,
     markGuidanceComplete,
   } = useGuidedSetup(settings != null, hasPw);
+
+  useBackgroundMode();
 
   useEffect(() => {
     appMounted.current = true;
@@ -168,11 +173,11 @@ function App() {
         </nav>
         <a
           className="nav-doc-link"
-          href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
+          href={HELP_GUIDES.index}
           target="_blank"
           rel="noreferrer"
         >
-          About public test nodes →
+          User guides →
         </a>
       </aside>
 
@@ -285,12 +290,34 @@ function App() {
           )}
 
           {tab === "receive" && (
-            <ReceiveTab netId={netId} callFiberRpc={callFiberRpc} />
+            <ReceiveTab
+              netId={netId}
+              callFiberRpc={callFiberRpc}
+              rpcReachable={rpcReachable}
+              nodePresence={nodePresence}
+              onGoToNode={() => setTab("node")}
+            />
           )}
 
-          {tab === "send" && <SendTab callFiberRpc={callFiberRpc} />}
+          {tab === "send" && (
+            <SendTab
+              callFiberRpc={callFiberRpc}
+              rpcReachable={rpcReachable}
+              nodePresence={nodePresence}
+              onGoToNode={() => setTab("node")}
+            />
+          )}
 
-          {tab === "network" && <NetworkTab callFiberRpc={callFiberRpc} />}
+          {tab === "activity" && <ActivityTab />}
+
+          {tab === "network" && (
+            <NetworkTab
+              callFiberRpc={callFiberRpc}
+              rpcReachable={rpcReachable}
+              nodePresence={nodePresence}
+              onGoToNode={() => setTab("node")}
+            />
+          )}
         </main>
       </div>
 

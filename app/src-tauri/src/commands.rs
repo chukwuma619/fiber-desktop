@@ -1,3 +1,4 @@
+use crate::app_state::AppUxState;
 use crate::bundled_fnn;
 use crate::config_sync;
 use crate::fiber_rpc;
@@ -327,4 +328,14 @@ pub fn fiber_rpc_call(
         return Err("FNN RPC URL is empty; set it in Settings.".to_string());
     }
     fiber_rpc::call(&url, &method, params)
+}
+
+#[tauri::command]
+pub fn set_hide_on_close(state: tauri::State<AppUxState>, enabled: bool) {
+    state.set_hide_on_close(enabled);
+}
+
+#[tauri::command]
+pub fn get_hide_on_close(state: tauri::State<AppUxState>) -> bool {
+    state.hide_on_close()
 }

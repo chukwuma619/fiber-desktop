@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { usePlatformLabels } from "../hooks/usePlatformLabels";
+import { HELP_GUIDES } from "../constants/helpLinks";
 import { ckbKeyPath } from "../lib/paths";
-import { logTextIndicatesFiberStoreLock } from "../lib/nodePresence";
 import type { NodePresenceKind } from "../lib/nodePresence";
 import type { CkbKeyStatus, FnnStatusView } from "../types/settings";
+import { NodeRecoveryPanel } from "./NodeRecoveryPanel";
 import { StartStopNodeButton } from "./StartStopNodeButton";
 
 type NodeTabProps = {
@@ -35,7 +35,6 @@ export function NodeTab({
   onStopNode,
   onSyncRuntime,
 }: NodeTabProps) {
-  const platform = usePlatformLabels();
   const keyPathDisplay = useMemo(
     () => ckbKeyPath(settingsDataDir),
     [settingsDataDir],
@@ -117,28 +116,20 @@ export function NodeTab({
           Exporting a key and testnet walkthrough:{" "}
           <a
             className="inline-link"
-            href="https://github.com/nervosnetwork/fiber/blob/develop/docs/public-nodes.md"
+            href={HELP_GUIDES.setup}
             target="_blank"
             rel="noreferrer"
           >
-            Fiber testnet nodes
+            Setup guide
           </a>
           .
         </p>
-        {logTextIndicatesFiberStoreLock(fnnLogs) ? (
-          <div className="node-lock-hint" role="note">
-            <strong className="node-lock-hint-title">
-              Data folder is already in use
-            </strong>
-            <p className="node-lock-hint-body">
-              Another <code className="code-pill">fnn</code> or Fiber Desktop
-              window is using the same data directory, so the database cannot
-              lock. Quit duplicates and any other {platform.terminalHint}
-              <code className="code-pill">fnn</code> with the same{" "}
-              <code className="code-pill">-d</code> path before starting again.
-            </p>
-          </div>
-        ) : null}
+        <NodeRecoveryPanel
+          nodePresence={nodePresence}
+          fnnStatus={fnnStatus}
+          fnnLogs={fnnLogs}
+          onSyncRuntime={onSyncRuntime}
+        />
         <div className="btn-row">
           <StartStopNodeButton
             locallyRunning={fnnStatus?.kind === "running"}
