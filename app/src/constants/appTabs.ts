@@ -16,6 +16,11 @@ export const APP_TABS = [
     hint: "Open, manage, and close channels",
   },
   {
+    id: "agents" as const,
+    label: "Agents",
+    hint: "Poll shop APIs and auto-create invoices",
+  },
+  {
     id: "receive" as const,
     label: "Receive",
     hint: "Generate an invoice to get paid",

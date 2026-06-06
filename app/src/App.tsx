@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { ActivityTab } from "./components/ActivityTab";
+import { AgentsTab } from "./components/AgentsTab";
 import { GuidedSetupModal } from "./components/GuidedSetupModal";
 import { NetworkTab } from "./components/NetworkTab";
 import { NodeTab } from "./components/NodeTab";
@@ -286,6 +287,14 @@ function App() {
               callFiberRpc={callFiberRpc}
               rpcReachable={rpcReachable}
               network={netId}
+            />
+          )}
+
+          {tab === "agents" && (
+            <AgentsTab
+              rpcReachable={rpcReachable}
+              nodePresence={nodePresence}
+              onGoToNode={() => setTab("node")}
             />
           )}
 

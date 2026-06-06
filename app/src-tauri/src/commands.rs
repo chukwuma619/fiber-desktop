@@ -7,6 +7,7 @@ use crate::fnn_precheck;
 use crate::fnn_runtime::{FnnRuntime, FnnRuntimeSnapshot};
 use crate::secret;
 use crate::settings::{self, AppSettings};
+use crate::shop_agents::{ShopAgentConfig, ShopAgentRow, ShopAgentsManager};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -338,4 +339,37 @@ pub fn set_hide_on_close(state: tauri::State<AppUxState>, enabled: bool) {
 #[tauri::command]
 pub fn get_hide_on_close(state: tauri::State<AppUxState>) -> bool {
     state.hide_on_close()
+}
+
+#[tauri::command]
+pub fn shop_agents_list(state: tauri::State<ShopAgentsManager>) -> Vec<ShopAgentRow> {
+    state.list()
+}
+
+#[tauri::command]
+pub fn shop_agents_save(
+    app: tauri::AppHandle,
+    state: tauri::State<ShopAgentsManager>,
+    config: ShopAgentConfig,
+) -> Result<ShopAgentRow, String> {
+    state.upsert(&app, config)
+}
+
+#[tauri::command]
+pub fn shop_agents_delete(
+    app: tauri::AppHandle,
+    state: tauri::State<ShopAgentsManager>,
+    id: String,
+) -> Result<(), String> {
+    state.delete(&app, &id)
+}
+
+#[tauri::command]
+pub fn shop_agents_set_enabled(
+    app: tauri::AppHandle,
+    state: tauri::State<ShopAgentsManager>,
+    id: String,
+    enabled: bool,
+) -> Result<ShopAgentRow, String> {
+    state.set_enabled(&app, &id, enabled)
 }

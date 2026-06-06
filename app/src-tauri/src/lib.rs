@@ -9,9 +9,11 @@ mod fnn_runtime;
 mod platform;
 mod secret;
 mod settings;
+mod shop_agents;
 
 use app_state::AppUxState;
 use fnn_runtime::FnnRuntime;
+use shop_agents::ShopAgentsManager;
 use tauri::Manager;
 
 #[cfg(desktop)]
@@ -40,8 +42,12 @@ pub fn run() {
     builder
         .manage(FnnRuntime::new())
         .manage(AppUxState::new())
+        .manage(ShopAgentsManager::new())
         .setup(|app| {
             app.state::<FnnRuntime>().attach_app(app.handle().clone());
+            if let Err(err) = app.state::<ShopAgentsManager>().load_and_start(&app.handle()) {
+                eprintln!("shop agents failed to start: {err}");
+            }
 
             #[cfg(desktop)]
             setup_tray(app)?;
@@ -86,6 +92,10 @@ pub fn run() {
             commands::get_platform_labels,
             commands::set_hide_on_close,
             commands::get_hide_on_close,
+            commands::shop_agents_list,
+            commands::shop_agents_save,
+            commands::shop_agents_delete,
+            commands::shop_agents_set_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -71,7 +71,7 @@ Content Security Policy is set in [`tauri.conf.json`](../app/src-tauri/tauri.con
 
 | Area | Path | Notes |
 |------|------|-------|
-| Tabs | [`app/src/constants/appTabs.ts`](../app/src/constants/appTabs.ts) | Overview, Setup, Node, Channels, Receive, Send, Network |
+| Tabs | [`app/src/constants/appTabs.ts`](../app/src/constants/appTabs.ts) | Overview, Setup, Node, Channels, Agents, Receive, Send, Activity, Network |
 | RPC client | [`app/src/lib/fiberRpc.ts`](../app/src/lib/fiberRpc.ts) | Wraps `fiber_rpc_call` |
 | Node runtime hook | [`app/src/lib/useNodeRuntime.ts`](../app/src/lib/useNodeRuntime.ts) | Start/stop/status/logs |
 | Guided setup | [`app/src/hooks/useGuidedSetup.ts`](../app/src/hooks/useGuidedSetup.ts) | First-run wizard |
@@ -87,6 +87,10 @@ Content Security Policy is set in [`tauri.conf.json`](../app/src-tauri/tauri.con
 | App config dir | Tauri app data; stores serialized `AppSettings` |
 
 Network defaults: testnet CKB RPC `https://testnet.ckbapp.dev/`, fnn JSON-RPC `http://127.0.0.1:8227` (see [`settings.rs`](../app/src-tauri/src/settings.rs)).
+
+## Shop agents
+
+The **Agents** tab runs one or more background pollers that talk **outbound** to integrator backends, create invoices on local `fnn`, and submit results. Logic lives in [`shop_agents.rs`](../app/src-tauri/src/shop_agents.rs). Website integrators use [**fiber-peer-pay**](../../fiber-peer-pay) (`@fiber-peer-pay/node` + `@fiber-peer-pay/react`). See [SHOP-AGENTS.md](./SHOP-AGENTS.md).
 
 ## Marketing site
 
