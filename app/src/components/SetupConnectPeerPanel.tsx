@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { buildConnectPeerParams } from "../lib/connectPeerParams";
+import { formatRpcUserError } from "../lib/rpcUserError";
 import { useRpc } from "../lib/useRpc";
 
 export type SetupConnectPeerPanelProps = {
@@ -21,6 +22,7 @@ export function SetupConnectPeerPanel({
 
   const { runRpc, rpcError, setRpcError, busy, anyBusy } = useRpc({
     callFiberRpc,
+    formatError: formatRpcUserError,
     onResult: (method) => {
       if (method === "connect_peer") {
         setConnectResult({
@@ -29,9 +31,12 @@ export function SetupConnectPeerPanel({
         });
       }
     },
-    onError: (method, msg) => {
+    onError: (method, err) => {
       if (method === "connect_peer") {
-        setConnectResult({ ok: false, msg });
+        setConnectResult({
+          ok: false,
+          msg: formatRpcUserError(method, err),
+        });
       }
     },
   });

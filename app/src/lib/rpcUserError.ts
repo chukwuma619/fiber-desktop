@@ -1,28 +1,34 @@
-/** Map raw Fiber RPC / transport errors to plain-language messages for end users. */
-export function formatRpcUserError(method: string, raw: string): string {
-  const lower = raw.toLowerCase();
+import type { FiberRpcError } from "./fiberRpcError";
 
-  if (
-    lower.includes("transport error") ||
-    lower.includes("connection refused") ||
-    lower.includes("failed to connect") ||
-    lower.includes("network unreachable") ||
-    lower.includes("timed out") ||
-    lower.includes("timeout")
-  ) {
+/** Map Fiber RPC errors to plain-language messages for end users. */
+export function formatRpcUserError(
+  method: string,
+  err: FiberRpcError | string,
+): string {
+  const parsed =
+    typeof err === "string"
+      ? ({ kind: "rpc" as const, message: err } satisfies FiberRpcError)
+      : err;
+  const lower = parsed.message.toLowerCase();
+
+  if (parsed.kind === "transport") {
     return "Could not reach your node. Start the node on the Node tab, then try again.";
   }
 
-  if (lower.includes("rpc url is empty")) {
+  if (parsed.kind === "config") {
     return "The node API URL is not set. Open Setup and enter your node API address.";
   }
 
-  if (lower.includes("invalid json")) {
+  if (parsed.kind === "parse") {
     return "The node returned an unexpected response. Check that the node API URL points to your Fiber node.";
   }
 
-  if (lower.includes("missing result")) {
+  if (parsed.kind === "missing_result") {
     return "The node did not return a result. Try again in a few seconds.";
+  }
+
+  if (parsed.code === -32999 || lower.includes("unauthorized")) {
+    return "The node rejected this request (unauthorized). Check RPC authentication in your node settings.";
   }
 
   if (method === "new_invoice") {
@@ -62,6 +68,10 @@ export function formatRpcUserError(method: string, raw: string): string {
 
   if (lower.includes("channel") && lower.includes("not")) {
     return "Your channel is not ready yet. Wait until it shows Ready on the Channels tab, then try again.";
+  }
+
+  if (parsed.message.trim()) {
+    return parsed.message;
   }
 
   return "Something went wrong. Check that your node is running and try again. If the problem continues, open Advanced details in Activity for the technical message.";

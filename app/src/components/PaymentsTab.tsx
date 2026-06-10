@@ -16,6 +16,8 @@ import {
 import { ckbAmountToShannonsHex } from "../lib/ckbAmount";
 import { PUBLIC_NODES, type NetworkId } from "../lib/publicNodes";
 import { sendDesktopNotification } from "../lib/desktopNotify";
+import { fiberRpcErrorFromInvoke } from "../lib/fiberRpcError";
+import { formatRpcUserError } from "../lib/rpcUserError";
 import { useRpc } from "../lib/useRpc";
 
 const SECP256K1_CODE_HASH =
@@ -72,6 +74,7 @@ export function PaymentsTab({
   const { runRpc, rpcError, setRpcError, history, rawJson, busy, anyBusy } =
     useRpc({
       callFiberRpc,
+      formatError: formatRpcUserError,
       onResult: (method, result) => {
         if (method === "node_info") {
           const parsed = parseNodeInfo(result);
@@ -237,7 +240,7 @@ export function PaymentsTab({
         setCloseRowMessage({
           channelId: row.channelId,
           ok: false,
-          msg: String(e),
+          msg: formatRpcUserError("node_info", fiberRpcErrorFromInvoke(e)),
         });
         setCloseRowBusy(null);
         setCloseConfirmId(null);
@@ -279,7 +282,10 @@ export function PaymentsTab({
       setCloseRowMessage({
         channelId: row.channelId,
         ok: false,
-        msg: String(e),
+        msg: formatRpcUserError(
+          "shutdown_channel",
+          fiberRpcErrorFromInvoke(e),
+        ),
       });
     } finally {
       setCloseRowBusy(null);

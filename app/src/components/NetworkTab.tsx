@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { buildConnectPeerParams } from "../lib/connectPeerParams";
 import {
+  fiberRpcErrorFromInvoke,
+  formatFiberRpcErrorTechnical,
+} from "../lib/fiberRpcError";
+import {
   parseChannelList,
   parseGraphNodeList,
   parseNodeInfo,
@@ -10,6 +14,7 @@ import {
   type ParsedNodeSummary,
 } from "../lib/networkRpcParse";
 import type { NodePresenceKind } from "../lib/nodePresence";
+import { formatRpcUserError } from "../lib/rpcUserError";
 import { NodeUnreachableBanner } from "./NodeUnreachableBanner";
 
 const HISTORY_CAP = 16;
@@ -79,13 +84,16 @@ export function NetworkTab({
         pushHistory({ label, ok: true, summary: summarizeRpcResult(method, result) });
         return result;
       } catch (e) {
-        const msg = String(e);
-        setRpcError(msg);
-        setRawJson(msg);
+        const rpcErr = fiberRpcErrorFromInvoke(e);
+        const technical = formatFiberRpcErrorTechnical(rpcErr);
+        const display = formatRpcUserError(method, rpcErr);
+        setRpcError(display);
+        setRawJson(technical);
         pushHistory({
           label,
           ok: false,
-          summary: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg,
+          summary:
+            technical.length > 120 ? `${technical.slice(0, 120)}…` : technical,
         });
         return undefined;
       } finally {
@@ -130,12 +138,15 @@ export function NetworkTab({
         summary: `Connected to ${row.pubkeyDisplay}`,
       });
     } catch (e) {
-      const msg = String(e);
+      const rpcErr = fiberRpcErrorFromInvoke(e);
+      const msg = formatRpcUserError("connect_peer", rpcErr);
       setConnectMessage({ pubkey: row.pubkey, ok: false, msg });
+      const technical = formatFiberRpcErrorTechnical(rpcErr);
       pushHistory({
         label: "Connect peer",
         ok: false,
-        summary: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg,
+        summary:
+          technical.length > 120 ? `${technical.slice(0, 120)}…` : technical,
       });
     } finally {
       setConnectBusyPubkey(null);

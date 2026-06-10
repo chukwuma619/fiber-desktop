@@ -1,4 +1,9 @@
 import { useCallback, useState } from "react";
+import {
+  fiberRpcErrorFromInvoke,
+  formatFiberRpcErrorTechnical,
+} from "./fiberRpcError";
+import type { FiberRpcError } from "./fiberRpcError";
 import { summarizeRpcResult } from "./networkRpcParse";
 
 const HISTORY_CAP = 20;
@@ -14,9 +19,9 @@ export type HistoryItem = {
 export type UseRpcOptions = {
   callFiberRpc: (method: string, params: unknown) => Promise<unknown>;
   onResult?: (method: string, result: unknown) => void;
-  onError?: (method: string, message: string) => void;
-  /** If set, shown in rpcError instead of the raw message. */
-  formatError?: (method: string, message: string) => string;
+  onError?: (method: string, error: FiberRpcError) => void;
+  /** If set, shown in rpcError instead of the raw node message. */
+  formatError?: (method: string, error: FiberRpcError) => string;
 };
 
 export function useRpc({
@@ -57,15 +62,19 @@ export function useRpc({
         pushHistory({ label, ok: true, summary: summarizeRpcResult(method, result) });
         return result;
       } catch (e) {
-        const msg = String(e);
-        const display = formatError ? formatError(method, msg) : msg;
+        const rpcErr = fiberRpcErrorFromInvoke(e);
+        const technical = formatFiberRpcErrorTechnical(rpcErr);
+        const display = formatError
+          ? formatError(method, rpcErr)
+          : rpcErr.message;
         setRpcError(display);
-        setRawJson(msg);
-        onError?.(method, msg);
+        setRawJson(technical);
+        onError?.(method, rpcErr);
         pushHistory({
           label,
           ok: false,
-          summary: msg.length > 120 ? `${msg.slice(0, 120)}…` : msg,
+          summary:
+            technical.length > 120 ? `${technical.slice(0, 120)}…` : technical,
         });
         return undefined;
       } finally {

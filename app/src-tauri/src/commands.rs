@@ -326,7 +326,7 @@ pub fn fiber_rpc_call(
     let settings = settings::load_or_default(&app)?;
     let url = settings.fnn_rpc_url.trim().to_string();
     if url.is_empty() {
-        return Err("FNN RPC URL is empty; set it in Settings.".to_string());
+        return Err(fiber_rpc::empty_rpc_url_error());
     }
     fiber_rpc::call(&url, &method, params)
 }

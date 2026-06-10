@@ -3,6 +3,7 @@ import { useCopyWithFeedback } from "../hooks/useCopyWithFeedback";
 import { recordActivity } from "../lib/activityHistory";
 import { sendDesktopNotification } from "../lib/desktopNotify";
 import type { NodePresenceKind } from "../lib/nodePresence";
+import { formatRpcUserError } from "../lib/rpcUserError";
 import { useRpc } from "../lib/useRpc";
 import { NodeUnreachableBanner } from "./NodeUnreachableBanner";
 
@@ -31,6 +32,7 @@ export function SendTab({
   const { runRpc, rpcError, setRpcError, history, rawJson, busy, anyBusy } =
     useRpc({
       callFiberRpc,
+      formatError: formatRpcUserError,
       onResult: (method, result) => {
         if (method === "send_payment" && isRecord(result)) {
           const hash =

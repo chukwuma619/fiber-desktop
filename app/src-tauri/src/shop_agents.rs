@@ -320,7 +320,10 @@ fn agent_loop(app: AppHandle, config: ShopAgentConfig, stop: Arc<AtomicBool>) {
             }
             Err(err) => {
                 let manager = app.state::<ShopAgentsManager>();
-                manager.record_poll_error(&config.id, err);
+                manager.record_poll_error(
+                    &config.id,
+                    fiber_rpc::FiberRpcError::message_from_json(&err),
+                );
             }
         }
         std::thread::sleep(interval);
